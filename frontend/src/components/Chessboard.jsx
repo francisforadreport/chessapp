@@ -130,11 +130,30 @@ const PIECES = {
   ),
 };
 
+// Add Modal component
+const GameOverModal = ({ winner, onNewGame }) => {
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white p-8 rounded-lg shadow-xl">
+                <h2 className="text-2xl font-bold mb-4">{winner} won this game!</h2>
+                <button
+                    onClick={onNewGame}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                >
+                    New Game
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const Chessboard = () => {
     const [chess] = useState(new Chess());
     const [gameState, setGameState] = useState(chess.board());
     const [currentTurn, setCurrentTurn] = useState("w");
     const [selectedPiece, setSelectedPiece] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+    const [winner, setWinner] = useState(null);
 
     const possibleMoves = useMemo(() => {
         if (!selectedPiece) return [];
@@ -157,6 +176,17 @@ const Chessboard = () => {
         }
     };        
 
+    // Add new game handler
+    const handleNewGame = () => {
+        chess.reset();
+        setGameState(chess.board());
+        setCurrentTurn("w");
+        setSelectedPiece(null);
+        setShowModal(false);
+        setWinner(null);
+    };
+
+    // Update handleDrop to check for check/checkmate
     const handleDrop = (from, to) => {
         try {
             const piece = chess.get(from);
@@ -171,20 +201,17 @@ const Chessboard = () => {
                 return;
             }
     
-            // First check if the move is in the list of legal moves
-            const legalMoves = chess.moves({ 
-                square: from,
-                verbose: true 
-            });
-            
-            const isLegalMove = legalMoves.some(move => move.to === to);
-            
-            if (!isLegalMove) {
-                toast.error("Invalid move for this piece");
+            // Check if move is legal according to chess rules
+            const moves = chess.moves({ verbose: true });
+            const isLegal = moves.some(move => 
+                move.from === from && move.to === to
+            );
+    
+            if (!isLegal) {
+                toast.error("Illegal move for this piece");
                 return;
             }
     
-            // If we got here, the move should be legal, so make it
             const move = chess.move({
                 from,
                 to,
@@ -196,10 +223,26 @@ const Chessboard = () => {
                 setCurrentTurn(chess.turn());
                 setSelectedPiece(null);
                 saveGame("game1", chess.history());
+
+                // Check for check
+                if (chess.inCheck()) {
+                    const checkedColor = chess.turn() === 'w' ? 'White' : 'Black';
+                    toast.warning(`${checkedColor} is in check!`);
+                }
+
+                // Check for checkmate
+                if (chess.isCheckmate()) {
+                    const winner = chess.turn() === 'w' ? 'Black' : 'White';
+                    setWinner(winner);
+                    setShowModal(true);
+                }
             }
         } catch (error) {
-            // This should rarely happen now that we check moves first
-            toast.error("Invalid move");
+            // Log error for debugging but don't show in console
+            if (process.env.NODE_ENV === 'development') {
+                console.debug("Move attempt failed:", { from, to, error: error.message });
+            }
+            toast.error("Invalid move attempted");
         }
     };                                     
 
@@ -316,6 +359,12 @@ const Chessboard = () => {
             <div className="p-8">
                 <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
                 {renderBoard()}
+                {showModal && (
+                    <GameOverModal 
+                        winner={winner} 
+                        onNewGame={handleNewGame}
+                    />
+                )}
                 <ToastContainer />
             </div>
         </DndProvider>
