@@ -131,17 +131,58 @@ const PIECES = {
 };
 
 // Add Modal component
-const GameOverModal = ({ winner, onNewGame }) => {
+const GameOverModal = ({ winner, onNewGame, onClose }) => {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white p-8 rounded-lg shadow-xl">
-                <h2 className="text-2xl font-bold mb-4">{winner} won this game!</h2>
-                <button
-                    onClick={onNewGame}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                >
-                    New Game
-                </button>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold">{winner} won this game!</h2>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-500 hover:text-gray-700"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div className="flex gap-4">
+                    <button
+                        onClick={onNewGame}
+                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                    >
+                        New Game
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Add CapturedPieces component
+const CapturedPieces = ({ pieces, color }) => {
+    // Group pieces by type
+    const groupedPieces = pieces.reduce((acc, piece) => {
+        acc[piece] = (acc[piece] || 0) + 1;
+        return acc;
+    }, {});
+
+    return (
+        <div className="mb-4">
+            <h3 className={`font-bold ${color === 'w' ? 'text-gray-700' : 'text-gray-700'} mb-2`}>
+                {color === 'w' ? 'White' : 'Black'} Captured:
+            </h3>
+            <div className="flex gap-4">
+                {Object.entries(groupedPieces).map(([piece, count]) => (
+                    <div key={piece} className="flex items-center">
+                        <span className="text-2xl">{PIECES[piece.toLowerCase()](color)}</span>
+                        <span className="ml-1 text-sm text-gray-700">({count})</span>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -154,6 +195,10 @@ const Chessboard = () => {
     const [selectedPiece, setSelectedPiece] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [winner, setWinner] = useState(null);
+    const [capturedPieces, setCapturedPieces] = useState({
+        w: [], // captured white pieces
+        b: []  // captured black pieces
+    });
 
     const possibleMoves = useMemo(() => {
         if (!selectedPiece) return [];
@@ -184,12 +229,14 @@ const Chessboard = () => {
         setSelectedPiece(null);
         setShowModal(false);
         setWinner(null);
+        setCapturedPieces({ w: [], b: [] });
     };
 
     // Update handleDrop to check for check/checkmate
     const handleDrop = (from, to) => {
         try {
             const piece = chess.get(from);
+            const targetPiece = chess.get(to);
             
             if (!piece) {
                 toast.error("No piece selected");
@@ -235,6 +282,14 @@ const Chessboard = () => {
                     const winner = chess.turn() === 'w' ? 'Black' : 'White';
                     setWinner(winner);
                     setShowModal(true);
+                }
+
+                // Handle captured piece
+                if (targetPiece) {
+                    setCapturedPieces(prev => ({
+                        ...prev,
+                        [targetPiece.color]: [...prev[targetPiece.color], targetPiece.type]
+                    }));
                 }
             }
         } catch (error) {
@@ -354,15 +409,22 @@ const Chessboard = () => {
         );
     };
 
+    const handleCloseModal = () => {
+        setShowModal(false);
+    };
+
     return (
         <DndProvider backend={HTML5Backend}>
             <div className="p-8">
                 <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
+                <CapturedPieces pieces={capturedPieces.b} color="b" />
                 {renderBoard()}
+                <CapturedPieces pieces={capturedPieces.w} color="w" />
                 {showModal && (
                     <GameOverModal 
                         winner={winner} 
                         onNewGame={handleNewGame}
+                        onClose={handleCloseModal}
                     />
                 )}
                 <ToastContainer />
