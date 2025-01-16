@@ -192,6 +192,32 @@ const CapturedPieces = ({ pieces, color }) => {
     );
 };
 
+// Add MoveHistory component
+const MoveHistory = ({ moves }) => {
+    return (
+        <div className="bg-gray-800 rounded-lg p-4 h-full">
+            <h3 className="text-gray-200 font-bold mb-4">Move History</h3>
+            <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 text-gray-300">
+                {moves.reduce((pairs, move, index) => {
+                    if (index % 2 === 0) {
+                        pairs.push([
+                            moves[index],
+                            moves[index + 1]
+                        ]);
+                    }
+                    return pairs;
+                }, []).map((pair, index) => (
+                    <React.Fragment key={index}>
+                        <div className="text-gray-500">{index + 1}.</div>
+                        <div>{pair[0]}</div>
+                        <div>{pair[1] || ''}</div>
+                    </React.Fragment>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const Chessboard = () => {
     const [chess] = useState(new Chess());
     const [gameState, setGameState] = useState(chess.board());
@@ -205,6 +231,7 @@ const Chessboard = () => {
     });
     const [isInCheck, setIsInCheck] = useState(false);
     const [checkToastId, setCheckToastId] = useState(null);
+    const [moveHistory, setMoveHistory] = useState([]);
 
     const possibleMoves = useMemo(() => {
         if (!selectedPiece) return [];
@@ -331,6 +358,9 @@ const Chessboard = () => {
                     setWinner(winner);
                     setShowModal(true);
                 }
+
+                // Update move history
+                setMoveHistory(chess.history());
             }
         } catch (error) {
             if (process.env.NODE_ENV === 'development') {
@@ -456,9 +486,16 @@ const Chessboard = () => {
         <DndProvider backend={HTML5Backend}>
             <div className="p-8">
                 <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
-                <CapturedPieces pieces={capturedPieces.w} color="w" />
-                {renderBoard()}
-                <CapturedPieces pieces={capturedPieces.b} color="b" />
+                <div className="flex gap-8">
+                    <div className="flex flex-col">
+                        <CapturedPieces pieces={capturedPieces.w} color="w" />
+                        {renderBoard()}
+                        <CapturedPieces pieces={capturedPieces.b} color="b" />
+                    </div>
+                    <div className="w-64">
+                        <MoveHistory moves={moveHistory} />
+                    </div>
+                </div>
                 {showModal && (
                     <GameOverModal 
                         winner={winner} 
