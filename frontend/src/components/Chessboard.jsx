@@ -172,15 +172,19 @@ const CapturedPieces = ({ pieces, color }) => {
     }, {});
 
     return (
-        <div className="mb-4">
-            <h3 className={`font-bold ${color === 'w' ? 'text-gray-700' : 'text-gray-700'} mb-2`}>
+        <div className="h-14 mb-2">
+            <h3 className={`font-bold text-gray-700 mb-1 text-sm`}>
                 {color === 'w' ? 'White' : 'Black'} Captured:
             </h3>
-            <div className="flex gap-4">
+            <div className="flex gap-2 min-h-[24px]">
                 {Object.entries(groupedPieces).map(([piece, count]) => (
                     <div key={piece} className="flex items-center">
-                        <span className="text-2xl">{PIECES[piece.toLowerCase()](color)}</span>
-                        <span className="ml-1 text-sm text-gray-700">({count})</span>
+                        <span className="text-lg scale-75">
+                            {PIECES[piece.toLowerCase()](color)}
+                        </span>
+                        <span className="ml-0.5 text-xs text-gray-700">
+                            ({count})
+                        </span>
                     </div>
                 ))}
             </div>
@@ -452,9 +456,9 @@ const Chessboard = () => {
         <DndProvider backend={HTML5Backend}>
             <div className="p-8">
                 <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
-                <CapturedPieces pieces={capturedPieces.b} color="b" />
-                {renderBoard()}
                 <CapturedPieces pieces={capturedPieces.w} color="w" />
+                {renderBoard()}
+                <CapturedPieces pieces={capturedPieces.b} color="b" />
                 {showModal && (
                     <GameOverModal 
                         winner={winner} 
