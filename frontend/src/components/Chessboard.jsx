@@ -1,10 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Chess } from "chess.js";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { API } from "../api";
 
 // Custom SVG pieces
 const PIECES = {
@@ -218,6 +217,45 @@ const MoveHistory = ({ moves }) => {
     );
 };
 
+// Add PromotionModal component
+const PromotionModal = ({ isOpen, onSelect, color }) => {
+    const pieces = ['q', 'r', 'b', 'n'];  // queen, rook, bishop, knight
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white p-4 rounded-lg shadow-lg">
+                <h2 className="text-xl font-bold mb-4 text-gray-800">Choose Promotion Piece</h2>
+                <div className="flex gap-4">
+                    {pieces.map((piece) => (
+                        <button
+                            key={piece}
+                            onClick={() => onSelect(piece)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            {PIECES[piece](color)}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Add CheckNotification component
+const CheckNotification = ({ isInCheck, turn }) => {
+    if (!isInCheck) return null;
+
+    const checkedColor = turn === 'w' ? 'White' : 'Black';
+    return (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg animate-pulse z-50 flex items-center gap-2">
+            <span className="text-xl">⚠️</span>
+            <span className="font-bold">{checkedColor} is in check!</span>
+        </div>
+    );
+};
+
 const Chessboard = () => {
     const [chess] = useState(new Chess());
     const [gameState, setGameState] = useState(chess.board());
@@ -230,8 +268,8 @@ const Chessboard = () => {
         b: []  // captured black pieces
     });
     const [isInCheck, setIsInCheck] = useState(false);
-    const [checkToastId, setCheckToastId] = useState(null);
     const [moveHistory, setMoveHistory] = useState([]);
+    const [promotionMove, setPromotionMove] = useState(null);
 
     const possibleMoves = useMemo(() => {
         if (!selectedPiece) return [];
@@ -241,77 +279,99 @@ const Chessboard = () => {
         }).map(move => move.to);
     }, [selectedPiece, chess]);
 
-    const saveGame = async (gameId, moves) => {
-        if (!Array.isArray(moves)) {
-            toast.error("Invalid game state. Cannot save.");
-            return;
-        }
-    
-        try {
-            await API.post("/games/save", { gameId, moves });
-        } catch (err) {
-            toast.error("Failed to save game. Please try again.");
-        }
-    };        
+    const cleanupToasts = useCallback(() => {
+        return new Promise((resolve) => {
+            try {
+                toast.dismiss();
+                resolve();
+            } catch (error) {
+                console.error('Error cleaning up toasts:', error);
+                resolve();
+            }
+        });
+    }, []);
 
-    // Add new game handler
-    const handleNewGame = () => {
-        chess.reset();
-        setGameState(chess.board());
-        setCurrentTurn("w");
-        setSelectedPiece(null);
-        setShowModal(false);
-        setWinner(null);
-        setCapturedPieces({ w: [], b: [] });
-        setIsInCheck(false);
-        
-        // Dismiss check toast if it exists
-        if (checkToastId) {
-            toast.dismiss(checkToastId);
-            setCheckToastId(null);
-        }
-    };
-
-    // Update handleDrop to manage persistent check toast
-    const handleDrop = (from, to) => {
+    const handleDrop = async (from, to) => {
         try {
             const piece = chess.get(from);
             const targetPiece = chess.get(to);
-            
+                
             if (!piece) {
-                toast.error("No piece selected");
+                await cleanupToasts();
+                toast.error("No piece selected", { 
+                    position: "bottom-right",
+                    autoClose: 2000,
+                    hideProgressBar: false,
+                    toastId: 'move-error'
+                });
                 return;
             }
-    
+
             if (piece.color !== currentTurn) {
-                toast.error(`It's ${currentTurn === 'w' ? 'White' : 'Black'}'s turn`);
+                await cleanupToasts();
+                toast.error(`It's ${currentTurn === 'w' ? 'White' : 'Black'}'s turn`, { 
+                    position: "bottom-right",
+                    autoClose: 2000,
+                    hideProgressBar: false,
+                    toastId: 'move-error'
+                });
                 return;
             }
-    
-            // Check if move is legal according to chess rules
+
+            // Check for pawn promotion
+            const isPawnPromotion = piece?.type === 'p' && 
+                ((piece.color === 'w' && to[1] === '8') || 
+                 (piece.color === 'b' && to[1] === '1'));
+
+            if (isPawnPromotion) {
+                const moves = chess.moves({ verbose: true });
+                const isLegal = moves.some(move => 
+                    move.from === from && 
+                    move.to === to && 
+                    move.flags.includes('p')
+                );
+
+                if (!isLegal) {
+                    toast.error("Illegal move", {
+                        position: "bottom-right",
+                        autoClose: 2000,
+                        hideProgressBar: false,
+                        toastId: 'move-error'
+                    });
+                    return;
+                }
+
+                setPromotionMove({ from, to });
+                return;
+            }
+
             const moves = chess.moves({ verbose: true });
             const isLegal = moves.some(move => 
                 move.from === from && move.to === to
             );
-    
+
             if (!isLegal) {
-                toast.error("Illegal move for this piece");
+                toast.error("Illegal move", {
+                    position: "bottom-right",
+                    autoClose: 2000,
+                    hideProgressBar: false,
+                    toastId: 'move-error'
+                });
                 return;
             }
-    
+
             const move = chess.move({
                 from,
                 to,
                 promotion: 'q'
             });
-    
+
             if (move) {
                 setGameState(chess.board());
                 setCurrentTurn(chess.turn());
+                setMoveHistory(chess.history());
                 setSelectedPiece(null);
-                saveGame("game1", chess.history());
 
-                // Handle captured piece
                 if (targetPiece) {
                     setCapturedPieces(prev => ({
                         ...prev,
@@ -319,56 +379,28 @@ const Chessboard = () => {
                     }));
                 }
 
-                // Handle check status and toast
-                const nowInCheck = chess.inCheck();
-                if (nowInCheck !== isInCheck) {
-                    setIsInCheck(nowInCheck);
-                    
-                    // If previous toast exists, dismiss it
-                    if (checkToastId) {
-                        toast.dismiss(checkToastId);
-                        setCheckToastId(null);
-                    }
-                    
-                    // If now in check, show new persistent toast
-                    if (nowInCheck) {
-                        const checkedColor = chess.turn() === 'w' ? 'White' : 'Black';
-                        const newToastId = toast.warning(
-                            `${checkedColor} is in check!`,
-                            {
-                                autoClose: false,  // Make toast persistent
-                                closeOnClick: false,  // Prevent closing on click
-                                draggable: false,  // Prevent dragging
-                                closeButton: false  // Hide close button
-                            }
-                        );
-                        setCheckToastId(newToastId);
-                    }
-                }
+                // Update check status
+                setIsInCheck(chess.inCheck());
 
-                // Check for checkmate
+                // Handle checkmate
                 if (chess.isCheckmate()) {
-                    // Dismiss check toast if it exists
-                    if (checkToastId) {
-                        toast.dismiss(checkToastId);
-                        setCheckToastId(null);
-                    }
-                    
+                    await cleanupToasts();
                     const winner = chess.turn() === 'w' ? 'Black' : 'White';
                     setWinner(winner);
                     setShowModal(true);
                 }
-
-                // Update move history
-                setMoveHistory(chess.history());
             }
         } catch (error) {
-            if (process.env.NODE_ENV === 'development') {
-                console.debug("Move attempt failed:", { from, to, error: error.message });
-            }
-            toast.error("Invalid move attempted");
+            console.error("Move attempt failed:", error);
+            await cleanupToasts();
+            toast.error("Invalid move", { 
+                position: "bottom-right",
+                autoClose: 2000,
+                hideProgressBar: false,
+                toastId: 'move-error'
+            });
         }
-    };                                     
+    };
 
     const Square = ({ children, onDrop, position, isLight, isHighlighted }) => {
         const [, drop] = useDrop(() => ({
@@ -482,15 +514,81 @@ const Chessboard = () => {
         setShowModal(false);
     };
 
+    // Update handlePromotion function
+    const handlePromotion = (promotionPiece) => {
+        if (!promotionMove) return;
+
+        try {
+            const targetPiece = chess.get(promotionMove.to);
+
+            const move = chess.move({
+                from: promotionMove.from,
+                to: promotionMove.to,
+                promotion: promotionPiece
+            });
+
+            if (move) {
+                setGameState(chess.board());
+                setCurrentTurn(chess.turn());
+                setMoveHistory(chess.history());
+                
+                if (targetPiece && targetPiece.color !== move.color) {
+                    setCapturedPieces(prev => ({
+                        ...prev,
+                        [targetPiece.color]: [...prev[targetPiece.color], targetPiece.type]
+                    }));
+                }
+                
+                // Only update the check status - CheckNotification will handle the display
+                setIsInCheck(chess.inCheck());
+            }
+        } catch (error) {
+            console.error("Promotion failed:", error);
+            toast.error("Invalid promotion move", {
+                position: "bottom-right",
+                autoClose: 2000,
+                hideProgressBar: false,
+                toastId: 'move-error'
+            });
+        } finally {
+            setPromotionMove(null);
+        }
+    };
+
+    // useEffect with cleanupToasts in dependencies
+    React.useEffect(() => {
+        return () => {
+            cleanupToasts();
+        };
+    }, [cleanupToasts]);
+
+    // Update handleNewGame to use async/await
+    const handleNewGame = async () => {
+        chess.reset();
+        setGameState(chess.board());
+        setCurrentTurn("w");
+        setSelectedPiece(null);
+        setShowModal(false);
+        setWinner(null);
+        setCapturedPieces({ w: [], b: [] });
+        setIsInCheck(false);
+        try {
+            await cleanupToasts();
+        } catch (error) {
+            console.error('Error cleaning up toasts in new game:', error);
+        }
+    };
+
     return (
         <DndProvider backend={HTML5Backend}>
             <div className="p-8">
                 <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
+                <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                 <div className="flex gap-8">
                     <div className="flex flex-col">
-                        <CapturedPieces pieces={capturedPieces.b} color="b" />
-                        {renderBoard()}
                         <CapturedPieces pieces={capturedPieces.w} color="w" />
+                        {renderBoard()}
+                        <CapturedPieces pieces={capturedPieces.b} color="b" />
                     </div>
                     <div className="w-64">
                         <MoveHistory moves={moveHistory} />
@@ -503,7 +601,24 @@ const Chessboard = () => {
                         onClose={handleCloseModal}
                     />
                 )}
-                <ToastContainer />
+                <PromotionModal 
+                    isOpen={!!promotionMove}
+                    onSelect={handlePromotion}
+                    color={currentTurn}
+                />
+                <ToastContainer
+                    position="bottom-right"
+                    autoClose={2000}
+                    hideProgressBar={false}
+                    newestOnTop={true}
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme="light"
+                    limit={3}
+                />
             </div>
         </DndProvider>
     );
