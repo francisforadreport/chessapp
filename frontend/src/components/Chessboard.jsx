@@ -199,6 +199,8 @@ const Chessboard = () => {
         w: [], // captured white pieces
         b: []  // captured black pieces
     });
+    const [isInCheck, setIsInCheck] = useState(false);
+    const [checkToastId, setCheckToastId] = useState(null);
 
     const possibleMoves = useMemo(() => {
         if (!selectedPiece) return [];
@@ -230,9 +232,16 @@ const Chessboard = () => {
         setShowModal(false);
         setWinner(null);
         setCapturedPieces({ w: [], b: [] });
+        setIsInCheck(false);
+        
+        // Dismiss check toast if it exists
+        if (checkToastId) {
+            toast.dismiss(checkToastId);
+            setCheckToastId(null);
+        }
     };
 
-    // Update handleDrop to check for check/checkmate
+    // Update handleDrop to manage persistent check toast
     const handleDrop = (from, to) => {
         try {
             const piece = chess.get(from);
@@ -271,19 +280,6 @@ const Chessboard = () => {
                 setSelectedPiece(null);
                 saveGame("game1", chess.history());
 
-                // Check for check
-                if (chess.inCheck()) {
-                    const checkedColor = chess.turn() === 'w' ? 'White' : 'Black';
-                    toast.warning(`${checkedColor} is in check!`);
-                }
-
-                // Check for checkmate
-                if (chess.isCheckmate()) {
-                    const winner = chess.turn() === 'w' ? 'Black' : 'White';
-                    setWinner(winner);
-                    setShowModal(true);
-                }
-
                 // Handle captured piece
                 if (targetPiece) {
                     setCapturedPieces(prev => ({
@@ -291,9 +287,48 @@ const Chessboard = () => {
                         [targetPiece.color]: [...prev[targetPiece.color], targetPiece.type]
                     }));
                 }
+
+                // Handle check status and toast
+                const nowInCheck = chess.inCheck();
+                if (nowInCheck !== isInCheck) {
+                    setIsInCheck(nowInCheck);
+                    
+                    // If previous toast exists, dismiss it
+                    if (checkToastId) {
+                        toast.dismiss(checkToastId);
+                        setCheckToastId(null);
+                    }
+                    
+                    // If now in check, show new persistent toast
+                    if (nowInCheck) {
+                        const checkedColor = chess.turn() === 'w' ? 'White' : 'Black';
+                        const newToastId = toast.warning(
+                            `${checkedColor} is in check!`,
+                            {
+                                autoClose: false,  // Make toast persistent
+                                closeOnClick: false,  // Prevent closing on click
+                                draggable: false,  // Prevent dragging
+                                closeButton: false  // Hide close button
+                            }
+                        );
+                        setCheckToastId(newToastId);
+                    }
+                }
+
+                // Check for checkmate
+                if (chess.isCheckmate()) {
+                    // Dismiss check toast if it exists
+                    if (checkToastId) {
+                        toast.dismiss(checkToastId);
+                        setCheckToastId(null);
+                    }
+                    
+                    const winner = chess.turn() === 'w' ? 'Black' : 'White';
+                    setWinner(winner);
+                    setShowModal(true);
+                }
             }
         } catch (error) {
-            // Log error for debugging but don't show in console
             if (process.env.NODE_ENV === 'development') {
                 console.debug("Move attempt failed:", { from, to, error: error.message });
             }
