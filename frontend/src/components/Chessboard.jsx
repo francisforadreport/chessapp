@@ -488,9 +488,9 @@ const Chessboard = () => {
                 <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
                 <div className="flex gap-8">
                     <div className="flex flex-col">
-                        <CapturedPieces pieces={capturedPieces.w} color="w" />
-                        {renderBoard()}
                         <CapturedPieces pieces={capturedPieces.b} color="b" />
+                        {renderBoard()}
+                        <CapturedPieces pieces={capturedPieces.w} color="w" />
                     </div>
                     <div className="w-64">
                         <MoveHistory moves={moveHistory} />
