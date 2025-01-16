@@ -1,38 +1,163 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Chess } from "chess.js";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { API } from "../api";  // Import the API instance
+import { API } from "../api";
+
+// Custom SVG pieces
+const PIECES = {
+  p: (color) => (
+    <svg viewBox="0 0 45 45" width="40" height="40">
+      <path
+        d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"
+        fill={color === 'w' ? '#fff' : '#666'}
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  ),
+  r: (color) => (
+    <svg viewBox="0 0 45 45" width="40" height="40">
+      <path
+        d="M9 39h27v-3H9v3zM12 36v-4h21v4H12zM11 14V9h4v2h5V9h5v2h5V9h4v5"
+        fill={color === 'w' ? '#fff' : '#666'}
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M34 14l-3 3H14l-3-3"
+        fill={color === 'w' ? '#fff' : '#666'}
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M31 17v12.5H14V17"
+        fill={color === 'w' ? '#fff' : '#666'}
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  ),
+  n: (color) => (
+    <svg viewBox="0 0 45 45" width="40" height="40">
+      <path
+        d="M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18"
+        fill={color === 'w' ? '#fff' : '#666'}
+        stroke="#000"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10"
+        fill={color === 'w' ? '#fff' : '#666'}
+        stroke="#000"
+        strokeWidth="1.5"
+      />
+    </svg>
+  ),
+  b: (color) => (
+    <svg viewBox="0 0 45 45" width="40" height="40">
+      <g
+        fill="none"
+        fillRule="evenodd"
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path
+          d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.354.49-2.323.47-3-.5 1.354-1.94 3-2 3-2z"
+          fill={color === 'w' ? '#fff' : '#666'}
+        />
+        <path
+          d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"
+          fill={color === 'w' ? '#fff' : '#666'}
+        />
+      </g>
+    </svg>
+  ),
+  q: (color) => (
+    <svg viewBox="0 0 45 45" width="40" height="40">
+      <g
+        fill={color === 'w' ? '#fff' : '#666'}
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      >
+        <path d="M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM24.5 7.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0z" />
+        <path
+          d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14l2 12z"
+          strokeLinecap="round"
+        />
+        <path
+          d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"
+          strokeLinecap="butt"
+        />
+        <path d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0" />
+      </g>
+    </svg>
+  ),
+  k: (color) => (
+    <svg viewBox="0 0 45 45" width="40" height="40">
+      <g
+        fill="none"
+        fillRule="evenodd"
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path
+          d="M22.5 11.63V6M20 8h5"
+          strokeLinejoin="miter"
+          fill={color === 'w' ? '#fff' : '#666'}
+        />
+        <path
+          d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"
+          fill={color === 'w' ? '#fff' : '#666'}
+        />
+        <path
+          d="M12.5 37c5.5 3.5 14.5 3.5 20 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-2.5-7.5-12-10.5-16-4-3 6 6 10.5 6 10.5v7"
+          fill={color === 'w' ? '#fff' : '#666'}
+        />
+      </g>
+    </svg>
+  ),
+};
 
 const Chessboard = () => {
     const [chess] = useState(new Chess());
     const [gameState, setGameState] = useState(chess.board());
-    const [currentTurn, setCurrentTurn] = useState("w"); // "w" for white, "b" for black
+    const [currentTurn, setCurrentTurn] = useState("w");
+    const [selectedPiece, setSelectedPiece] = useState(null);
 
-    // Save game state to the backend
+    const possibleMoves = useMemo(() => {
+        if (!selectedPiece) return [];
+        return chess.moves({
+            square: selectedPiece,
+            verbose: true
+        }).map(move => move.to);
+    }, [selectedPiece, chess]);
+
     const saveGame = async (gameId, moves) => {
         if (!Array.isArray(moves)) {
-            console.error("Invalid moves array:", moves);
             toast.error("Invalid game state. Cannot save.");
             return;
         }
     
         try {
-            console.log("Saving game:", { gameId, moves });
             await API.post("/games/save", { gameId, moves });
-            console.log("Game saved successfully.");
         } catch (err) {
-            console.error("Error saving game:", err.response?.data || err.message);
             toast.error("Failed to save game. Please try again.");
         }
     };        
 
-    // Handle a piece drop
     const handleDrop = (from, to) => {
-        console.log("Attempted move:", { from, to });
-    
         try {
             const piece = chess.get(from);
             
@@ -46,17 +171,20 @@ const Chessboard = () => {
                 return;
             }
     
-            // Check if move is legal according to chess rules
-            const moves = chess.moves({ verbose: true });
-            const isLegal = moves.some(move => 
-                move.from === from && move.to === to
-            );
-    
-            if (!isLegal) {
-                toast.error("Illegal move for this piece");
+            // First check if the move is in the list of legal moves
+            const legalMoves = chess.moves({ 
+                square: from,
+                verbose: true 
+            });
+            
+            const isLegalMove = legalMoves.some(move => move.to === to);
+            
+            if (!isLegalMove) {
+                toast.error("Invalid move for this piece");
                 return;
             }
     
+            // If we got here, the move should be legal, so make it
             const move = chess.move({
                 from,
                 to,
@@ -66,88 +194,99 @@ const Chessboard = () => {
             if (move) {
                 setGameState(chess.board());
                 setCurrentTurn(chess.turn());
+                setSelectedPiece(null);
                 saveGame("game1", chess.history());
             }
         } catch (error) {
-            console.error("Move error:", error);
-            toast.error("Invalid move attempted");
+            // This should rarely happen now that we check moves first
+            toast.error("Invalid move");
         }
     };                                     
 
-    // Render a single square
-    const Square = ({ children, onDrop, position, isLight }) => {
+    const Square = ({ children, onDrop, position, isLight, isHighlighted }) => {
         const [, drop] = useDrop(() => ({
             accept: "piece",
-            drop: (item) => onDrop(item.position, position), // Pass both source and target positions
+            drop: (item) => onDrop(item.position, position),
         }));
 
         return (
             <div
                 ref={drop}
-                style={{
-                    width: "50px",
-                    height: "50px",
-                    backgroundColor: isLight ? "white" : "gray",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: "1px solid black",
-                }}
+                className={`
+                    w-16 h-16 flex items-center justify-center relative
+                    ${isLight ? 'bg-green-50' : 'bg-green-700'}
+                    ${isHighlighted ? 'after:absolute after:w-full after:h-full after:bg-yellow-300 after:opacity-40' : ''}
+                `}
             >
                 {children}
             </div>
         );
     };
 
-    // Render a single piece
-    const Piece = ({ piece, position }) => {
+    const Piece = ({ piece, color, position }) => {
         const [, drag] = useDrag(() => ({
             type: "piece",
-            item: { position }, // Pass source position
+            item: { position },
         }));
 
         return (
             <div
                 ref={drag}
-                style={{
-                    fontSize: "24px",
-                    cursor: "grab",
+                className="cursor-grab select-none"
+                onClick={() => {
+                    if (color === currentTurn) {
+                        setSelectedPiece(position);
+                    }
                 }}
             >
-                {piece.toUpperCase()}
+                {PIECES[piece.toLowerCase()](color)}
             </div>
         );
     };
 
-    // Render the entire chessboard
     const renderBoard = () => {
-        return gameState.map((row, rowIndex) => (
-            <div key={rowIndex} style={{ display: "flex" }}>
-                {row.map((square, squareIndex) => {
-                    const position = `${String.fromCharCode(97 + squareIndex)}${8 - rowIndex}`;
-                    const isLight = (rowIndex + squareIndex) % 2 === 0;
+        const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
-                    return (
-                        <Square
-                            key={squareIndex}
-                            isLight={isLight}
-                            position={position} // Pass position to Square
-                            onDrop={(from, to) => handleDrop(from, to)} // Handle source and target
-                        >
-                            {square && <Piece piece={square.type} position={position} />}
-                        </Square>
-                    );
-                })}
+        return (
+            <div className="inline-block bg-green-900 p-4 rounded-lg shadow-lg">
+                {gameState.map((row, rowIndex) => (
+                    <div key={rowIndex} className="flex">
+                        {row.map((square, squareIndex) => {
+                            const position = `${files[squareIndex]}${ranks[rowIndex]}`;
+                            const isLight = (rowIndex + squareIndex) % 2 === 0;
+                            const isHighlighted = possibleMoves.includes(position);
+
+                            return (
+                                <Square
+                                    key={squareIndex}
+                                    isLight={isLight}
+                                    position={position}
+                                    isHighlighted={isHighlighted}
+                                    onDrop={handleDrop}
+                                >
+                                    {square && (
+                                        <Piece
+                                            piece={square.type}
+                                            color={square.color}
+                                            position={position}
+                                        />
+                                    )}
+                                </Square>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
-        ));
+        );
     };
 
     return (
         <DndProvider backend={HTML5Backend}>
-            <div>
-                <h1>Chessboard</h1>
-                <div style={{ display: "inline-block" }}>{renderBoard()}</div>
-                <ToastContainer /> {/* Toast container for notifications */}
+            <div className="p-8">
+                <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
+                {renderBoard()}
+                <ToastContainer />
             </div>
         </DndProvider>
     );
