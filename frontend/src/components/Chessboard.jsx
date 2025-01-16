@@ -250,8 +250,24 @@ const Chessboard = () => {
 
         return (
             <div className="inline-block bg-green-900 p-4 rounded-lg shadow-lg">
+                {/* File coordinates (top) */}
+                <div className="flex ml-8">
+                    {files.map(file => (
+                        <div key={file} className="w-16 h-8 flex items-center justify-center text-green-50">
+                            {file}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Board with rank coordinates */}
                 {gameState.map((row, rowIndex) => (
                     <div key={rowIndex} className="flex">
+                        {/* Rank coordinate (left) */}
+                        <div className="w-8 h-16 flex items-center justify-center text-green-50">
+                            {ranks[rowIndex]}
+                        </div>
+
+                        {/* Chess squares */}
                         {row.map((square, squareIndex) => {
                             const position = `${files[squareIndex]}${ranks[rowIndex]}`;
                             const isLight = (rowIndex + squareIndex) % 2 === 0;
@@ -275,8 +291,22 @@ const Chessboard = () => {
                                 </Square>
                             );
                         })}
+
+                        {/* Rank coordinate (right) */}
+                        <div className="w-8 h-16 flex items-center justify-center text-green-50">
+                            {ranks[rowIndex]}
+                        </div>
                     </div>
                 ))}
+
+                {/* File coordinates (bottom) */}
+                <div className="flex ml-8">
+                    {files.map(file => (
+                        <div key={file} className="w-16 h-8 flex items-center justify-center text-green-50">
+                            {file}
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     };
