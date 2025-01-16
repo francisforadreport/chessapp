@@ -6,9 +6,13 @@ const cors = require("cors");
 
 // Middleware to parse JSON
 app.use(cors({
-    origin: "http://localhost:3000", // Update to deployed frontend URL after deployment
-    methods: ["GET", "POST", "PUT", "DELETE"], // Allow specific HTTP methods
-    allowedHeaders: ["Content-Type", "Authorization"], // Allow specific headers
+    origin: [
+        "http://localhost:3000",
+        "https://chess-frontend-qann.onrender.com"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 }));
 app.use(express.json());
 

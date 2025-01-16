@@ -4,7 +4,7 @@ import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axios from "axios";
+import { API } from "../api";  // Import the API instance
 
 const Chessboard = () => {
     const [chess] = useState(new Chess());
@@ -21,7 +21,7 @@ const Chessboard = () => {
     
         try {
             console.log("Saving game:", { gameId, moves });
-            await axios.post("http://localhost:5001/games/save", { gameId, moves });
+            await API.post("/games/save", { gameId, moves });
             console.log("Game saved successfully.");
         } catch (err) {
             console.error("Error saving game:", err.response?.data || err.message);

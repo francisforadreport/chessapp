@@ -4,11 +4,8 @@ const { Pool } = require("pg");
 
 // Database connection
 const pool = new Pool({
-    user: "postgres",
-    host: "localhost",
-    database: "chess_app",
-    password: "1995",
-    port: 5050,
+    connectionString: process.env.DATABASE_URL || "postgresql://postgres:1995@localhost:5050/chess_app",
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // Get all users
