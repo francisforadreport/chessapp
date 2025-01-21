@@ -700,12 +700,12 @@ const Chessboard = () => {
 
         return (
             <div className="inline-block bg-green-900 p-2 sm:p-3 lg:p-4 rounded-lg shadow-lg">
-                {/* File coordinates (top) */}
-                <div className="flex ml-[32px] sm:ml-[40px] md:ml-[48px] lg:ml-[56px]">
+                {/* File coordinates (top) - Hidden on mobile */}
+                <div className="hidden sm:flex sm:ml-[40px] md:ml-[48px] lg:ml-[56px]">
                     {files.map(file => (
                         <div key={file} 
-                             className="w-[40px] h-[32px] sm:w-[50px] sm:h-[40px] md:w-[60px] md:h-[48px] lg:w-[64px] lg:h-[56px] 
-                                        flex items-center justify-center text-green-50 text-sm sm:text-base">
+                             className="hidden sm:flex w-[50px] sm:h-[40px] md:w-[60px] md:h-[48px] lg:w-[64px] lg:h-[56px] 
+                                        items-center justify-center text-green-50 text-sm sm:text-base">
                             {file}
                         </div>
                     ))}
@@ -713,9 +713,9 @@ const Chessboard = () => {
 
                 {gameState.map((row, rowIndex) => (
                     <div key={rowIndex} className="flex">
-                        {/* Rank coordinate (left) */}
-                        <div className="w-[32px] h-[40px] sm:w-[40px] sm:h-[50px] md:w-[48px] md:h-[60px] lg:w-[56px] lg:h-[64px]
-                                      flex items-center justify-center text-green-50 text-sm sm:text-base">
+                        {/* Rank coordinate (left) - Hidden on mobile */}
+                        <div className="hidden sm:flex w-[40px] sm:h-[50px] md:w-[48px] md:h-[60px] lg:w-[56px] lg:h-[64px]
+                                      items-center justify-center text-green-50 text-sm sm:text-base">
                             {ranks[rowIndex]}
                         </div>
 
@@ -745,20 +745,20 @@ const Chessboard = () => {
                             );
                         })}
 
-                        {/* Rank coordinate (right) */}
-                        <div className="w-[32px] h-[40px] sm:w-[40px] sm:h-[50px] md:w-[48px] md:h-[60px] lg:w-[56px] lg:h-[64px]
-                                      flex items-center justify-center text-green-50 text-sm sm:text-base">
+                        {/* Rank coordinate (right) - Hidden on mobile */}
+                        <div className="hidden sm:flex w-[40px] sm:h-[50px] md:w-[48px] md:h-[60px] lg:w-[56px] lg:h-[64px]
+                                      items-center justify-center text-green-50 text-sm sm:text-base">
                             {ranks[rowIndex]}
                         </div>
                     </div>
                 ))}
 
-                {/* File coordinates (bottom) */}
-                <div className="flex ml-[32px] sm:ml-[40px] md:ml-[48px] lg:ml-[56px]">
+                {/* File coordinates (bottom) - Hidden on mobile */}
+                <div className="hidden sm:flex sm:ml-[40px] md:ml-[48px] lg:ml-[56px]">
                     {files.map(file => (
                         <div key={file} 
-                             className="w-[40px] h-[32px] sm:w-[50px] sm:h-[40px] md:w-[60px] md:h-[48px] lg:w-[64px] lg:h-[56px]
-                                        flex items-center justify-center text-green-50 text-sm sm:text-base">
+                             className="hidden sm:flex w-[50px] sm:h-[40px] md:w-[60px] md:h-[48px] lg:w-[64px] lg:h-[56px]
+                                        items-center justify-center text-green-50 text-sm sm:text-base">
                             {file}
                         </div>
                     ))}
