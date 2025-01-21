@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Chess } from "chess.js";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -129,30 +129,63 @@ const PIECES = {
   ),
 };
 
+// Add new game state types
+const GameEndType = {
+    CHECKMATE: 'checkmate',
+    STALEMATE: 'stalemate',
+    THREEFOLD: 'threefold',
+    INSUFFICIENT: 'insufficient',
+    FIFTY_MOVE: 'fifty-move',
+    DRAW: 'draw'
+};
+
 // Add Modal component
-const GameOverModal = ({ winner, onNewGame, onClose }) => {
+const GameOverModal = ({ winner, gameEndType, onNewGame, onClose }) => {
+    const getTitle = () => {
+        if (gameEndType === GameEndType.CHECKMATE) {
+            return `Checkmate! ${winner} wins!`;
+        }
+        return "Draw!";
+    };
+
+    const getDescription = () => {
+        switch (gameEndType) {
+            case GameEndType.STALEMATE:
+                return "Draw by Stalemate - The player to move has no legal moves but is not in check.";
+            case GameEndType.THREEFOLD:
+                return "Draw by Threefold Repetition - The same position has occurred three times.";
+            case GameEndType.INSUFFICIENT:
+                return "Draw by Insufficient Material - Neither player has enough pieces to force checkmate.";
+            case GameEndType.FIFTY_MOVE:
+                return "Draw by Fifty-Move Rule - No pawn has been moved and no piece has been captured in the last 50 moves.";
+            case GameEndType.DRAW:
+                return "Draw by Agreement";
+            default:
+                return "";
+        }
+    };
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-8 rounded-lg shadow-xl">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">{winner} won this game!</h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700"
-                    >
-                        ✕
-                    </button>
-                </div>
-                <div className="flex gap-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+                <h2 className="text-2xl font-bold mb-2 text-gray-800">
+                    {getTitle()}
+                </h2>
+                {gameEndType !== GameEndType.CHECKMATE && (
+                    <p className="text-gray-600 mb-4">
+                        {getDescription()}
+                    </p>
+                )}
+                <div className="flex justify-end gap-4 mt-6">
                     <button
                         onClick={onNewGame}
-                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                     >
                         New Game
                     </button>
                     <button
                         onClick={onClose}
-                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+                        className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
                     >
                         Close
                     </button>
@@ -274,6 +307,60 @@ const CheckNotification = ({ isInCheck, turn }) => {
     );
 };
 
+// Add a debug menu for testing different scenarios
+const TestScenarios = ({ onSetPosition }) => {
+    const scenarios = [
+        {
+            name: "Stalemate",
+            // Black king is stalemated
+            fen: "k7/8/1KP5/8/8/8/8/8 w - - 0 1"
+        },
+        {
+            name: "Insufficient Material (K vs K)",
+            fen: "4k3/8/4K3/8/8/8/8/8 w - - 0 1"
+        },
+        {
+            name: "Insufficient Material (K+B vs K)",
+            fen: "4k3/8/4K3/8/8/8/8/B7 w - - 0 1"
+        },
+        {
+            name: "Near Checkmate",
+            // One move away from checkmate
+            fen: "7k/5ppp/8/8/8/8/6PP/6RK w - - 0 1"
+        },
+        {
+            name: "Immediate Checkmate",
+            // Black is in checkmate
+            fen: "7k/5QQP/8/8/8/8/8/7K b - - 0 1"
+        }
+    ];
+
+    return (
+        <div className="fixed bottom-4 left-4 bg-gray-800 p-4 rounded-lg shadow-lg z-50">
+            <h3 className="text-white font-bold mb-2">Test Scenarios</h3>
+            <div className="space-y-2">
+                {scenarios.map((scenario) => (
+                    <button
+                        key={scenario.name}
+                        onClick={() => onSetPosition(scenario.fen)}
+                        className="block w-full text-left px-3 py-2 text-sm text-gray-200 
+                                 hover:bg-gray-700 rounded transition-colors"
+                    >
+                        {scenario.name}
+                    </button>
+                ))}
+                <button
+                    onClick={() => onSetPosition('start')}
+                    className="block w-full text-left px-3 py-2 text-sm text-gray-200 
+                             hover:bg-gray-700 rounded transition-colors"
+                >
+                    Reset to Start
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const Chessboard = () => {
     const [chess] = useState(new Chess());
     const [gameState, setGameState] = useState(chess.board());
@@ -288,6 +375,8 @@ const Chessboard = () => {
     const [isInCheck, setIsInCheck] = useState(false);
     const [moveHistory, setMoveHistory] = useState([]);
     const [promotionMove, setPromotionMove] = useState(null);
+    const [gameEndType, setGameEndType] = useState(null);
+    const [showTestScenarios, setShowTestScenarios] = useState(false);
 
     const cleanupToasts = useCallback(() => {
         return new Promise((resolve) => {
@@ -310,8 +399,55 @@ const Chessboard = () => {
         }).map(move => move.to);
     }, [selectedPiece, chess]);
 
+    // Function to check game ending conditions
+    const checkGameEnd = useCallback(() => {
+        // Already handled checkmate
+        if (chess.isCheckmate()) {
+            const winner = chess.turn() === 'w' ? 'Black' : 'White';
+            setWinner(winner);
+            setGameEndType(GameEndType.CHECKMATE);
+            setShowModal(true);
+            return true;
+        }
+
+        // Stalemate
+        if (chess.isStalemate()) {
+            setGameEndType(GameEndType.STALEMATE);
+            setShowModal(true);
+            return true;
+        }
+
+        // Threefold Repetition
+        if (chess.isThreefoldRepetition()) {
+            setGameEndType(GameEndType.THREEFOLD);
+            setShowModal(true);
+            return true;
+        }
+
+        // Insufficient Material
+        if (chess.isInsufficientMaterial()) {
+            setGameEndType(GameEndType.INSUFFICIENT);
+            setShowModal(true);
+            return true;
+        }
+
+        // 50 Move Rule
+        if (chess.isDraw()) { // This includes the fifty move rule
+            setGameEndType(GameEndType.FIFTY_MOVE);
+            setShowModal(true);
+            return true;
+        }
+
+        return false;
+    }, [chess, setShowModal, setWinner]);
+
     const handleDrop = async (from, to) => {
         try {
+            // If the piece is dropped back to its original position, ignore the move
+            if (from === to) {
+                return; // Silently return without any error message
+            }
+
             const piece = chess.get(from);
             const targetPiece = chess.get(to);
             
@@ -407,12 +543,7 @@ const Chessboard = () => {
                 }
 
                 setIsInCheck(chess.inCheck());
-
-                if (chess.isCheckmate()) {
-                    const winner = chess.turn() === 'w' ? 'Black' : 'White';
-                    setWinner(winner);
-                    setShowModal(true);
-                }
+                checkGameEnd(); // Check for game-ending conditions
             }
         } catch (error) {
             console.error("Move attempt failed:", error);
@@ -587,7 +718,7 @@ const Chessboard = () => {
         };
     }, [cleanupToasts]);
 
-    // Update handleNewGame to use async/await
+    // Update handleNewGame to reset game end state
     const handleNewGame = async () => {
         chess.reset();
         setGameState(chess.board());
@@ -595,6 +726,7 @@ const Chessboard = () => {
         setSelectedPiece(null);
         setShowModal(false);
         setWinner(null);
+        setGameEndType(null);
         setCapturedPieces({ w: [], b: [] });
         setIsInCheck(false);
         try {
@@ -604,16 +736,86 @@ const Chessboard = () => {
         }
     };
 
+    // Add position setter
+    const setPosition = (fen) => {
+        try {
+            if (fen === 'start') {
+                chess.reset();
+            } else {
+                chess.load(fen);
+            }
+            
+            setGameState(chess.board());
+            setCurrentTurn(chess.turn());
+            setMoveHistory(chess.history());
+            setIsInCheck(chess.inCheck());
+            
+            // Immediately check for end conditions
+            if (chess.isCheckmate()) {
+                const winner = chess.turn() === 'w' ? 'Black' : 'White';
+                setWinner(winner);
+                setGameEndType(GameEndType.CHECKMATE);
+                setShowModal(true);
+            } else if (chess.isStalemate()) {
+                setGameEndType(GameEndType.STALEMATE);
+                setShowModal(true);
+            } else if (chess.isInsufficientMaterial()) {
+                setGameEndType(GameEndType.INSUFFICIENT);
+                setShowModal(true);
+            } else if (chess.isDraw()) {
+                setGameEndType(GameEndType.DRAW);
+                setShowModal(true);
+            }
+            
+        } catch (error) {
+            console.error('Error setting position:', error);
+            toast.error('Invalid position');
+        }
+    };
+
+    // Update the keyboard shortcut handler
+    useEffect(() => {
+        const handleKeyPress = (e) => {
+            console.log('Key pressed:', {
+                key: e.key,
+                altKey: e.altKey,
+                metaKey: e.metaKey,
+                ctrlKey: e.ctrlKey
+            });
+            
+            // Check for both Alt/Option key
+            if ((e.altKey || e.metaKey) && e.key.toLowerCase() === 't') {
+                e.preventDefault();
+                setShowTestScenarios(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, []);
+
     return (
         <DndProvider backend={HTML5Backend}>
             <div className="p-8">
-                <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold text-green-900">Chess Game</h1>
+                    {/* Add visible toggle button */}
+                    <button
+                        onClick={() => setShowTestScenarios(prev => !prev)}
+                        className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
+                                 transition-colors flex items-center gap-2"
+                    >
+                        <span>{showTestScenarios ? 'Hide' : 'Show'} Test Scenarios</span>
+                        <span className="text-sm text-gray-400">(Option + T)</span>
+                    </button>
+                </div>
+                
                 <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                 
                 {/* Main game container with flexbox */}
                 <div className="flex gap-8">
                     {/* Left column - Chessboard and captured pieces */}
-                    <div className="flex flex-col">
+                    <div className="flex flex-col space-y-2">
                         <CapturedPieces pieces={capturedPieces.w} color="w" />
                         <div className="inline-block bg-green-900 p-4 rounded-lg shadow-lg">
                             {renderBoard()}
@@ -622,15 +824,16 @@ const Chessboard = () => {
                     </div>
 
                     {/* Right column - Move History, offset to align with chessboard */}
-                    <div className="w-64 mt-[40px]"> {/* Added margin-top to match CapturedPieces height */}
-                        <div className="h-[520px]"> {/* Height adjusted to match only the chessboard */}
+                    <div className="w-64 mt-[40px]">
+                        <div className="h-[520px]">
                             <MoveHistory moves={moveHistory} />
                         </div>
                     </div>
                 </div>
                 {showModal && (
                     <GameOverModal 
-                        winner={winner} 
+                        winner={winner}
+                        gameEndType={gameEndType}
                         onNewGame={handleNewGame}
                         onClose={handleCloseModal}
                     />
@@ -653,6 +856,9 @@ const Chessboard = () => {
                     theme="light"
                     limit={3}
                 />
+                {showTestScenarios && (
+                    <TestScenarios onSetPosition={setPosition} />
+                )}
             </div>
         </DndProvider>
     );
