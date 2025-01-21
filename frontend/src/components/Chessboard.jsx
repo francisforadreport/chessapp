@@ -382,33 +382,35 @@ const TestScenarios = ({ onSetPosition }) => {
     );
 };
 
-// Add Header component
+// Update Header component
 const Header = ({ onNewGame, showTestScenarios, setShowTestScenarios }) => {
     return (
-        <header className="bg-white shadow-sm mb-8">
-            <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center">
+        <header className="bg-white shadow-sm mb-4 sm:mb-8">
+            <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
                     {/* Title */}
-                    <h1 className="text-3xl font-bold text-green-900">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-green-900">
                         Chess Game
                     </h1>
 
                     {/* Buttons */}
-                    <div className="flex gap-4">
+                    <div className="flex flex-wrap justify-center gap-2">
                         <button
                             onClick={onNewGame}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
+                            className="px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base 
+                                     bg-green-600 text-white rounded-lg hover:bg-green-700 
                                      transition-colors flex items-center gap-2"
                         >
                             <span>New Game</span>
                         </button>
                         <button
                             onClick={() => setShowTestScenarios(prev => !prev)}
-                            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
+                            className="px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base 
+                                     bg-gray-800 text-white rounded-lg hover:bg-gray-700 
                                      transition-colors flex items-center gap-2"
                         >
-                            <span>{showTestScenarios ? 'Hide' : 'Show'} Test Scenarios</span>
-                            <span className="text-sm text-gray-400">(Option + T)</span>
+                            <span>{showTestScenarios ? 'Hide' : 'Show'} Test</span>
+                            <span className="hidden sm:inline text-sm text-gray-400">(Option + T)</span>
                         </button>
                     </div>
                 </div>
@@ -915,19 +917,22 @@ const Chessboard = () => {
                 />
                 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="py-4 sm:py-8">
+                    <div className="py-2 sm:py-4">
                         <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                         
-                        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
-                            <div className="flex flex-col space-y-2">
+                        <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start">
+                            {/* Board and captured pieces */}
+                            <div className="w-full sm:w-auto flex flex-col items-center space-y-2">
                                 <CapturedPieces pieces={capturedPieces.w} color="w" />
-                                <div className="inline-block bg-green-900 p-2 sm:p-4 rounded-lg shadow-lg">
+                                <div className="inline-block bg-green-900 p-2 sm:p-4 rounded-lg shadow-lg 
+                                              overflow-x-auto max-w-full">
                                     {renderBoard()}
                                 </div>
                                 <CapturedPieces pieces={capturedPieces.b} color="b" />
                             </div>
 
-                            <div className="w-full lg:w-64 h-[400px] lg:h-[520px] lg:mt-[40px]">
+                            {/* Move History - Full width on mobile, side panel on desktop */}
+                            <div className="w-full lg:w-64 h-[300px] sm:h-[400px] lg:h-[520px]">
                                 <MoveHistory 
                                     moves={moveHistory} 
                                     currentTurn={currentTurn}
