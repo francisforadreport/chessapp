@@ -390,7 +390,7 @@ const Header = ({ onNewGame, showTestScenarios, setShowTestScenarios }) => {
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
                     {/* Title */}
                     <h1 className="text-2xl sm:text-3xl font-bold text-green-900">
-                        Chess Game
+                        Chess Pro AI
                     </h1>
 
                     {/* Buttons */}
@@ -660,13 +660,20 @@ const Chessboard = () => {
             <div
                 ref={setNodeRef}
                 className={`
-                    w-[40px] h-[40px] sm:w-[50px] sm:h-[50px] md:w-[60px] md:h-[60px] lg:w-[64px] lg:h-[64px]
-                    flex items-center justify-center relative
+                    relative flex items-center justify-center
                     ${isLight ? 'bg-green-50' : 'bg-green-700'}
                     ${isHighlighted ? 'after:absolute after:w-full after:h-full after:bg-yellow-300 after:opacity-40' : ''}
                 `}
+                style={{
+                    width: 'calc((100vw - 16px) / 8)',
+                    height: 'calc((100vw - 16px) / 8)',
+                    maxWidth: '64px',
+                    maxHeight: '64px'
+                }}
             >
-                {children}
+                <div className="w-full h-full flex items-center justify-center">
+                    {children}
+                </div>
             </div>
         );
     };
@@ -682,7 +689,7 @@ const Chessboard = () => {
                 ref={setNodeRef}
                 {...listeners}
                 {...attributes}
-                className="cursor-grab select-none touch-none"
+                className="cursor-grab select-none touch-none w-full h-full flex items-center justify-center scale-75"
                 onClick={() => {
                     if (color === currentTurn) {
                         onSelect(position);
@@ -699,70 +706,33 @@ const Chessboard = () => {
         const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
         return (
-            <div className="inline-block bg-green-900 p-2 sm:p-3 lg:p-4 rounded-lg shadow-lg">
-                {/* File coordinates (top) - Hidden on mobile */}
-                <div className="hidden sm:flex sm:ml-[40px] md:ml-[48px] lg:ml-[56px]">
-                    {files.map(file => (
-                        <div key={file} 
-                             className="hidden sm:flex w-[50px] sm:h-[40px] md:w-[60px] md:h-[48px] lg:w-[64px] lg:h-[56px] 
-                                        items-center justify-center text-green-50 text-sm sm:text-base">
-                            {file}
-                        </div>
-                    ))}
-                </div>
-
+            <div className="grid grid-cols-8 w-full max-w-[512px] mx-auto">
                 {gameState.map((row, rowIndex) => (
-                    <div key={rowIndex} className="flex">
-                        {/* Rank coordinate (left) - Hidden on mobile */}
-                        <div className="hidden sm:flex w-[40px] sm:h-[50px] md:w-[48px] md:h-[60px] lg:w-[56px] lg:h-[64px]
-                                      items-center justify-center text-green-50 text-sm sm:text-base">
-                            {ranks[rowIndex]}
-                        </div>
+                    row.map((square, squareIndex) => {
+                        const position = `${files[squareIndex]}${ranks[rowIndex]}`;
+                        const isLight = (rowIndex + squareIndex) % 2 === 0;
+                        const isHighlighted = possibleMoves.includes(position);
 
-                        {/* Chess squares */}
-                        {row.map((square, squareIndex) => {
-                            const position = `${files[squareIndex]}${ranks[rowIndex]}`;
-                            const isLight = (rowIndex + squareIndex) % 2 === 0;
-                            const isHighlighted = possibleMoves.includes(position);
-
-                            return (
-                                <Square
-                                    key={squareIndex}
-                                    position={position}
-                                    isLight={isLight}
-                                    isHighlighted={isHighlighted}
-                                >
-                                    {square && (
-                                        <Piece
-                                            piece={square.type}
-                                            color={square.color}
-                                            position={position}
-                                            currentTurn={currentTurn}
-                                            onSelect={(pos) => setSelectedPiece(pos === selectedPiece ? null : pos)}
-                                        />
-                                    )}
-                                </Square>
-                            );
-                        })}
-
-                        {/* Rank coordinate (right) - Hidden on mobile */}
-                        <div className="hidden sm:flex w-[40px] sm:h-[50px] md:w-[48px] md:h-[60px] lg:w-[56px] lg:h-[64px]
-                                      items-center justify-center text-green-50 text-sm sm:text-base">
-                            {ranks[rowIndex]}
-                        </div>
-                    </div>
+                        return (
+                            <Square
+                                key={`${rowIndex}-${squareIndex}`}
+                                position={position}
+                                isLight={isLight}
+                                isHighlighted={isHighlighted}
+                            >
+                                {square && (
+                                    <Piece
+                                        piece={square.type}
+                                        color={square.color}
+                                        position={position}
+                                        currentTurn={currentTurn}
+                                        onSelect={(pos) => setSelectedPiece(pos === selectedPiece ? null : pos)}
+                                    />
+                                )}
+                            </Square>
+                        );
+                    })
                 ))}
-
-                {/* File coordinates (bottom) - Hidden on mobile */}
-                <div className="hidden sm:flex sm:ml-[40px] md:ml-[48px] lg:ml-[56px]">
-                    {files.map(file => (
-                        <div key={file} 
-                             className="hidden sm:flex w-[50px] sm:h-[40px] md:w-[60px] md:h-[48px] lg:w-[64px] lg:h-[56px]
-                                        items-center justify-center text-green-50 text-sm sm:text-base">
-                            {file}
-                        </div>
-                    ))}
-                </div>
             </div>
         );
     };
@@ -921,23 +891,24 @@ const Chessboard = () => {
                     setShowTestScenarios={setShowTestScenarios}
                 />
                 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-[1920px] mx-auto">
                     <div className="py-2 sm:py-4">
                         <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                         
-                        <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start">
-                            {/* Board and captured pieces */}
-                            <div className="w-full sm:w-auto flex flex-col items-center space-y-2">
-                                <CapturedPieces pieces={capturedPieces.w} color="w" />
-                                <div className="inline-block bg-green-900 p-2 sm:p-4 rounded-lg shadow-lg 
-                                              overflow-x-auto max-w-full">
-                                    {renderBoard()}
+                        <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start justify-center">
+                            {/* Board container - Added enhanced shadow */}
+                            <div className="w-full px-2 sm:px-4 lg:px-6">
+                                <div className="flex flex-col items-center space-y-2">
+                                    <CapturedPieces pieces={capturedPieces.w} color="w" />
+                                    <div className="w-full bg-green-900 p-0 sm:p-3 lg:p-4 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] hover:shadow-[0_0_25px_rgba(0,0,0,0.25)] transition-shadow duration-300">
+                                        {renderBoard()}
+                                    </div>
+                                    <CapturedPieces pieces={capturedPieces.b} color="b" />
                                 </div>
-                                <CapturedPieces pieces={capturedPieces.b} color="b" />
                             </div>
 
-                            {/* Move History - Increased width on desktop */}
-                            <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px]">
+                            {/* Move History */}
+                            <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px] px-2 sm:px-0">
                                 <MoveHistory 
                                     moves={moveHistory} 
                                     currentTurn={currentTurn}
