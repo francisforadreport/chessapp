@@ -243,7 +243,7 @@ const PromotionModal = ({ isOpen, onSelect, color }) => {
     );
 };
 
-// Add CheckNotification component
+// Add CheckNotification component for persistent check display
 const CheckNotification = ({ isInCheck, turn }) => {
     if (!isInCheck) return null;
 
@@ -271,6 +271,19 @@ const Chessboard = () => {
     const [moveHistory, setMoveHistory] = useState([]);
     const [promotionMove, setPromotionMove] = useState(null);
 
+    const cleanupToasts = useCallback(() => {
+        return new Promise((resolve) => {
+            try {
+                toast.dismiss();
+                setTimeout(resolve, 100); // Add small delay to ensure cleanup completes
+            } catch (error) {
+                console.error('Error cleaning up toasts:', error);
+                resolve();
+            }
+        });
+    }, []);
+
+    // Calculate possible moves based on selected piece
     const possibleMoves = useMemo(() => {
         if (!selectedPiece) return [];
         return chess.moves({
@@ -279,41 +292,32 @@ const Chessboard = () => {
         }).map(move => move.to);
     }, [selectedPiece, chess]);
 
-    const cleanupToasts = useCallback(() => {
-        return new Promise((resolve) => {
-            try {
-                toast.dismiss();
-                resolve();
-            } catch (error) {
-                console.error('Error cleaning up toasts:', error);
-                resolve();
-            }
-        });
-    }, []);
-
     const handleDrop = async (from, to) => {
         try {
             const piece = chess.get(from);
             const targetPiece = chess.get(to);
+            
+            // Clear existing toasts before showing new ones
+            await cleanupToasts();
                 
             if (!piece) {
-                await cleanupToasts();
                 toast.error("No piece selected", { 
                     position: "bottom-right",
                     autoClose: 2000,
                     hideProgressBar: false,
-                    toastId: 'move-error'
+                    closeOnClick: true,
+                    toastId: 'no-piece'
                 });
                 return;
             }
 
             if (piece.color !== currentTurn) {
-                await cleanupToasts();
                 toast.error(`It's ${currentTurn === 'w' ? 'White' : 'Black'}'s turn`, { 
                     position: "bottom-right",
                     autoClose: 2000,
                     hideProgressBar: false,
-                    toastId: 'move-error'
+                    closeOnClick: true,
+                    toastId: 'wrong-turn'
                 });
                 return;
             }
@@ -336,7 +340,8 @@ const Chessboard = () => {
                         position: "bottom-right",
                         autoClose: 2000,
                         hideProgressBar: false,
-                        toastId: 'move-error'
+                        closeOnClick: true,
+                        toastId: 'illegal-move'
                     });
                     return;
                 }
@@ -355,10 +360,14 @@ const Chessboard = () => {
                     position: "bottom-right",
                     autoClose: 2000,
                     hideProgressBar: false,
-                    toastId: 'move-error'
+                    closeOnClick: true,
+                    toastId: 'illegal-move'
                 });
                 return;
             }
+
+            // Clear any existing error toasts before successful move
+            await cleanupToasts();
 
             const move = chess.move({
                 from,
@@ -370,7 +379,7 @@ const Chessboard = () => {
                 setGameState(chess.board());
                 setCurrentTurn(chess.turn());
                 setMoveHistory(chess.history());
-                setSelectedPiece(null);
+                setSelectedPiece(null); // Clear selected piece after move
 
                 if (targetPiece) {
                     setCapturedPieces(prev => ({
@@ -379,12 +388,9 @@ const Chessboard = () => {
                     }));
                 }
 
-                // Update check status
                 setIsInCheck(chess.inCheck());
 
-                // Handle checkmate
                 if (chess.isCheckmate()) {
-                    await cleanupToasts();
                     const winner = chess.turn() === 'w' ? 'Black' : 'White';
                     setWinner(winner);
                     setShowModal(true);
@@ -397,7 +403,8 @@ const Chessboard = () => {
                 position: "bottom-right",
                 autoClose: 2000,
                 hideProgressBar: false,
-                toastId: 'move-error'
+                closeOnClick: true,
+                toastId: 'invalid-move'
             });
         }
     };
@@ -555,7 +562,7 @@ const Chessboard = () => {
         }
     };
 
-    // useEffect with cleanupToasts in dependencies
+    // Cleanup effect
     React.useEffect(() => {
         return () => {
             cleanupToasts();
