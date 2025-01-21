@@ -880,27 +880,20 @@ const Chessboard = () => {
     }, [chess, moveHistory, capturedPieces]);
 
     return (
-        <DndContext 
-            sensors={sensors}
-            onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div className="min-h-screen bg-gray-50">
-                <Header 
-                    onNewGame={handleNewGame}
-                    showTestScenarios={showTestScenarios}
-                    setShowTestScenarios={setShowTestScenarios}
-                />
+                <Header />
                 
                 <div className="max-w-[1920px] mx-auto">
                     <div className="py-2 sm:py-4">
                         <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                         
-                        <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start justify-center">
-                            {/* Board container - Added enhanced shadow */}
-                            <div className="w-full px-2 sm:px-4 lg:px-6">
+                        <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start justify-center px-2 sm:px-4 lg:px-6">
+                            {/* Board container */}
+                            <div className="w-full lg:w-auto">
                                 <div className="flex flex-col items-center space-y-2">
                                     <CapturedPieces pieces={capturedPieces.w} color="w" />
-                                    <div className="w-full bg-green-900 p-0 sm:p-3 lg:p-4 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] hover:shadow-[0_0_25px_rgba(0,0,0,0.25)] transition-shadow duration-300">
+                                    <div className="w-full lg:w-auto bg-green-900 p-0 sm:p-3 lg:p-4 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] hover:shadow-[0_0_25px_rgba(0,0,0,0.25)] transition-shadow duration-300">
                                         {renderBoard()}
                                     </div>
                                     <CapturedPieces pieces={capturedPieces.b} color="b" />
@@ -908,7 +901,7 @@ const Chessboard = () => {
                             </div>
 
                             {/* Move History */}
-                            <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px] px-2 sm:px-0">
+                            <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px] px-2 lg:px-0">
                                 <MoveHistory 
                                     moves={moveHistory} 
                                     currentTurn={currentTurn}
