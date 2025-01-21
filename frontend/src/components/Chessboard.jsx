@@ -193,25 +193,43 @@ const CapturedPieces = ({ pieces, color }) => {
 
 // Add MoveHistory component
 const MoveHistory = ({ moves }) => {
+    // Automatically scroll to the latest move
+    const scrollRef = React.useRef(null);
+    
+    React.useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [moves]);
+
     return (
-        <div className="bg-gray-800 rounded-lg p-4 h-full">
+        <div className="bg-gray-800 rounded-lg p-4 h-[600px] flex flex-col">
             <h3 className="text-gray-200 font-bold mb-4">Move History</h3>
-            <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 text-gray-300">
-                {moves.reduce((pairs, move, index) => {
-                    if (index % 2 === 0) {
-                        pairs.push([
-                            moves[index],
-                            moves[index + 1]
-                        ]);
-                    }
-                    return pairs;
-                }, []).map((pair, index) => (
-                    <React.Fragment key={index}>
-                        <div className="text-gray-500">{index + 1}.</div>
-                        <div>{pair[0]}</div>
-                        <div>{pair[1] || ''}</div>
-                    </React.Fragment>
-                ))}
+            <div 
+                ref={scrollRef}
+                className="overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-700"
+            >
+                <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-1 text-gray-300 pr-2">
+                    {moves.reduce((pairs, move, index) => {
+                        if (index % 2 === 0) {
+                            pairs.push([
+                                moves[index],
+                                moves[index + 1]
+                            ]);
+                        }
+                        return pairs;
+                    }, []).map((pair, index) => (
+                        <React.Fragment key={index}>
+                            <div className="text-gray-500 select-none">{index + 1}.</div>
+                            <div className="font-medium hover:bg-gray-700 px-2 py-0.5 rounded cursor-pointer">
+                                {pair[0]}
+                            </div>
+                            <div className="font-medium hover:bg-gray-700 px-2 py-0.5 rounded cursor-pointer">
+                                {pair[1] || ''}
+                            </div>
+                        </React.Fragment>
+                    ))}
+                </div>
             </div>
         </div>
     );
