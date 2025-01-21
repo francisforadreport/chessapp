@@ -609,14 +609,23 @@ const Chessboard = () => {
             <div className="p-8">
                 <h1 className="text-3xl font-bold mb-8 text-green-900">Chess Game</h1>
                 <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
+                
+                {/* Main game container with flexbox */}
                 <div className="flex gap-8">
+                    {/* Left column - Chessboard and captured pieces */}
                     <div className="flex flex-col">
                         <CapturedPieces pieces={capturedPieces.w} color="w" />
-                        {renderBoard()}
+                        <div className="inline-block bg-green-900 p-4 rounded-lg shadow-lg">
+                            {renderBoard()}
+                        </div>
                         <CapturedPieces pieces={capturedPieces.b} color="b" />
                     </div>
-                    <div className="w-64">
-                        <MoveHistory moves={moveHistory} />
+
+                    {/* Right column - Move History, offset to align with chessboard */}
+                    <div className="w-64 mt-[40px]"> {/* Added margin-top to match CapturedPieces height */}
+                        <div className="h-[520px]"> {/* Height adjusted to match only the chessboard */}
+                            <MoveHistory moves={moveHistory} />
+                        </div>
                     </div>
                 </div>
                 {showModal && (
