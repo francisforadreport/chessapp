@@ -11,6 +11,8 @@ import {
     useDraggable,
     useDroppable 
 } from '@dnd-kit/core';
+import GameSetupModal from './GameSetupModal';
+import ChessEngine from '../services/ChessEngine';
 
 // Custom SVG pieces
 const PIECES = {
@@ -450,6 +452,19 @@ const Chessboard = () => {
     const [promotionMove, setPromotionMove] = useState(null);
     const [gameEndType, setGameEndType] = useState(null);
     const [showTestScenarios, setShowTestScenarios] = useState(false);
+    const [showSetup, setShowSetup] = useState(() => {
+        // Check if user has played before
+        const hasPlayedBefore = localStorage.getItem('hasPlayedBefore');
+        return !hasPlayedBefore; // Show setup if never played before
+    });
+    const [gameConfig, setGameConfig] = useState(() => {
+        // Try to get saved config
+        const savedConfig = localStorage.getItem('gameConfig');
+        return savedConfig ? JSON.parse(savedConfig) : null;
+    });
+
+    // Add state for AI thinking
+    const [isAIThinking, setIsAIThinking] = useState(false);
 
     const cleanupToasts = useCallback(() => {
         return new Promise((resolve) => {
@@ -790,28 +805,8 @@ const Chessboard = () => {
     }, [cleanupToasts]);
 
     // Update handleNewGame to clear localStorage
-    const handleNewGame = async () => {
-        chess.reset();
-        setGameState(chess.board());
-        setCurrentTurn("w");
-        setSelectedPiece(null);
-        setShowModal(false);
-        setWinner(null);
-        setGameEndType(null);
-        setCapturedPieces({ w: [], b: [] });
-        setIsInCheck(false);
-        setMoveHistory([]);
-        
-        // Clear localStorage
-        localStorage.removeItem('chessPosition');
-        localStorage.removeItem('moveHistory');
-        localStorage.removeItem('capturedPieces');
-        
-        try {
-            await cleanupToasts();
-        } catch (error) {
-            console.error('Error cleaning up toasts in new game:', error);
-        }
+    const handleNewGame = () => {
+        setShowSetup(true);
     };
 
     // Add position setter
@@ -879,10 +874,100 @@ const Chessboard = () => {
         localStorage.setItem('capturedPieces', JSON.stringify(capturedPieces));
     }, [chess, moveHistory, capturedPieces]);
 
+    // Add handler for game start
+    const handleGameStart = (config) => {
+        setGameConfig(config);
+        setShowSetup(false);
+        
+        // Save to localStorage
+        localStorage.setItem('hasPlayedBefore', 'true');
+        localStorage.setItem('gameConfig', JSON.stringify(config));
+        
+        // Reset the game
+        chess.reset();
+        setGameState(chess.board());
+        setCurrentTurn(config.playerColor === 'w' ? 'w' : 'b');
+        setSelectedPiece(null);
+        setWinner(null);
+        setGameEndType(null);
+        setCapturedPieces({ w: [], b: [] });
+        setIsInCheck(false);
+        setMoveHistory([]);
+    };
+
+    // Handle AI moves
+    const handleAIMove = useCallback((move) => {
+        try {
+            const result = chess.move(move);
+            if (result) {
+                setGameState(chess.board());
+                setCurrentTurn(chess.turn());
+                setMoveHistory(chess.history());
+                
+                // Check for captured pieces
+                if (result.captured) {
+                    setCapturedPieces(prev => ({
+                        ...prev,
+                        [result.color]: [...prev[result.color], result.captured]
+                    }));
+                }
+                
+                setIsInCheck(chess.inCheck());
+                checkGameEnd();
+            }
+        } catch (error) {
+            console.error('Invalid AI move:', error);
+        } finally {
+            setIsAIThinking(false);
+        }
+    }, [chess, setGameState, setCurrentTurn, setMoveHistory, setCapturedPieces, setIsInCheck, checkGameEnd]);
+
+    // Trigger AI move after player's move
+    useEffect(() => {
+        if (gameConfig && currentTurn !== gameConfig.playerColor && !checkGameEnd()) {
+            setIsAIThinking(true);
+            ChessEngine.getMove(
+                chess.fen(),
+                gameConfig.difficulty,
+                handleAIMove
+            );
+        }
+    }, [currentTurn, gameConfig, chess, handleAIMove, checkGameEnd]);
+
+    // Cleanup engine on unmount
+    useEffect(() => {
+        return () => {
+            ChessEngine.destroy();
+        };
+    }, []);
+
+    // Add loading indicator when AI is thinking
+    const LoadingIndicator = () => (
+        isAIThinking && (
+            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg z-50">
+                <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-500 border-t-transparent" />
+                    <span className="text-sm font-medium">Chess Pro AI is thinking...</span>
+                </div>
+            </div>
+        )
+    );
+
     return (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div className="min-h-screen bg-gray-50">
-                <Header />
+                <LoadingIndicator />
+                {showSetup && (
+                    <GameSetupModal 
+                        onStartGame={handleGameStart}
+                        initialConfig={gameConfig} // Pass previous config if exists
+                    />
+                )}
+                <Header 
+                    onNewGame={handleNewGame}
+                    showTestScenarios={showTestScenarios}
+                    setShowTestScenarios={setShowTestScenarios}
+                />
                 
                 <div className="max-w-[1920px] mx-auto">
                     <div className="py-2 sm:py-4">
