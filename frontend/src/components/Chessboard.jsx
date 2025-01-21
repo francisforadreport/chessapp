@@ -593,7 +593,7 @@ const Chessboard = () => {
         );
     };
 
-    const Piece = ({ piece, color, position }) => {
+    const Piece = ({ piece, color, position, currentTurn, onSelect }) => {
         const [, drag] = useDrag(() => ({
             type: "piece",
             item: { position },
@@ -605,7 +605,7 @@ const Chessboard = () => {
                 className="cursor-grab select-none"
                 onClick={() => {
                     if (color === currentTurn) {
-                        setSelectedPiece(position);
+                        onSelect(position);
                     }
                 }}
             >
@@ -656,6 +656,8 @@ const Chessboard = () => {
                                             piece={square.type}
                                             color={square.color}
                                             position={position}
+                                            currentTurn={currentTurn}
+                                            onSelect={(pos) => setSelectedPiece(pos === selectedPiece ? null : pos)}
                                         />
                                     )}
                                 </Square>
@@ -828,15 +830,23 @@ const Chessboard = () => {
             <div className="p-8">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-green-900">Chess Game</h1>
-                    {/* Add visible toggle button */}
-                    <button
-                        onClick={() => setShowTestScenarios(prev => !prev)}
-                        className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
-                                 transition-colors flex items-center gap-2"
-                    >
-                        <span>{showTestScenarios ? 'Hide' : 'Show'} Test Scenarios</span>
-                        <span className="text-sm text-gray-400">(Option + T)</span>
-                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={handleNewGame}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
+                                     transition-colors flex items-center gap-2"
+                        >
+                            <span>New Game</span>
+                        </button>
+                        <button
+                            onClick={() => setShowTestScenarios(prev => !prev)}
+                            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
+                                     transition-colors flex items-center gap-2"
+                        >
+                            <span>{showTestScenarios ? 'Hide' : 'Show'} Test Scenarios</span>
+                            <span className="text-sm text-gray-400">(Option + T)</span>
+                        </button>
+                    </div>
                 </div>
                 
                 <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
