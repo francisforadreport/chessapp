@@ -1,9 +1,16 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Chess } from "chess.js";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { 
+    DndContext, 
+    useSensor,
+    useSensors,
+    PointerSensor,
+    TouchSensor,
+    useDraggable,
+    useDroppable 
+} from '@dnd-kit/core';
 
 // Custom SVG pieces
 const PIECES = {
@@ -225,8 +232,7 @@ const CapturedPieces = ({ pieces, color }) => {
 };
 
 // Add MoveHistory component
-const MoveHistory = ({ moves }) => {
-    // Automatically scroll to the latest move
+const MoveHistory = ({ moves, currentTurn }) => {
     const scrollRef = React.useRef(null);
     
     React.useEffect(() => {
@@ -236,8 +242,23 @@ const MoveHistory = ({ moves }) => {
     }, [moves]);
 
     return (
-        <div className="bg-gray-800 rounded-lg p-4 h-[600px] flex flex-col">
-            <h3 className="text-gray-200 font-bold mb-4">Move History</h3>
+        <div className="bg-gray-800 rounded-lg p-4 h-full flex flex-col">
+            <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-gray-200 font-bold">Move History</h3>
+                <div className={`
+                    flex items-center gap-2 px-3 py-1.5 rounded-full
+                    ${currentTurn === 'w' ? 'bg-white text-gray-800' : 'bg-gray-700 text-white'}
+                    transition-colors duration-300
+                `}>
+                    <div className={`
+                        w-2 h-2 rounded-full bg-green-500 animate-pulse
+                    `}/>
+                    <span className="text-sm font-medium">
+                        {currentTurn === 'w' ? 'White' : 'Black'} to move
+                    </span>
+                </div>
+            </div>
+
             <div 
                 ref={scrollRef}
                 className="overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-700"
@@ -608,15 +629,34 @@ const Chessboard = () => {
         }
     };
 
-    const Square = ({ children, onDrop, position, isLight, isHighlighted }) => {
-        const [, drop] = useDrop(() => ({
-            accept: "piece",
-            drop: (item) => onDrop(item.position, position),
-        }));
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5,
+            },
+        })
+    );
+
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+        if (!active || !over) return;
+        handleDrop(active.id, over.id);
+    };
+
+    const Square = ({ children, position, isLight, isHighlighted }) => {
+        const { setNodeRef } = useDroppable({
+            id: position
+        });
 
         return (
             <div
-                ref={drop}
+                ref={setNodeRef}
                 className={`
                     w-16 h-16 flex items-center justify-center relative
                     ${isLight ? 'bg-green-50' : 'bg-green-700'}
@@ -629,15 +669,17 @@ const Chessboard = () => {
     };
 
     const Piece = ({ piece, color, position, currentTurn, onSelect }) => {
-        const [, drag] = useDrag(() => ({
-            type: "piece",
-            item: { position },
-        }));
+        const { attributes, listeners, setNodeRef } = useDraggable({
+            id: position,
+            data: { piece, color, position }
+        });
 
         return (
-            <div
-                ref={drag}
-                className="cursor-grab select-none"
+            <div 
+                ref={setNodeRef}
+                {...listeners}
+                {...attributes}
+                className="cursor-grab select-none touch-none"
                 onClick={() => {
                     if (color === currentTurn) {
                         onSelect(position);
@@ -861,7 +903,10 @@ const Chessboard = () => {
     }, [chess, moveHistory, capturedPieces]);
 
     return (
-        <DndProvider backend={HTML5Backend}>
+        <DndContext 
+            sensors={sensors}
+            onDragEnd={handleDragEnd}
+        >
             <div className="min-h-screen bg-gray-50">
                 <Header 
                     onNewGame={handleNewGame}
@@ -869,13 +914,11 @@ const Chessboard = () => {
                     setShowTestScenarios={setShowTestScenarios}
                 />
                 
-                {/* Add max-w-7xl and matching padding to align with header */}
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="py-4 sm:py-8">
                         <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                         
                         <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
-                            {/* Board and captured pieces */}
                             <div className="flex flex-col space-y-2">
                                 <CapturedPieces pieces={capturedPieces.w} color="w" />
                                 <div className="inline-block bg-green-900 p-2 sm:p-4 rounded-lg shadow-lg">
@@ -884,7 +927,6 @@ const Chessboard = () => {
                                 <CapturedPieces pieces={capturedPieces.b} color="b" />
                             </div>
 
-                            {/* Move History */}
                             <div className="w-full lg:w-64 h-[400px] lg:h-[520px] lg:mt-[40px]">
                                 <MoveHistory 
                                     moves={moveHistory} 
@@ -893,40 +935,42 @@ const Chessboard = () => {
                             </div>
                         </div>
                     </div>
-                    
-                    {/* Modals and notifications */}
-                    {showModal && (
-                        <GameOverModal 
-                            winner={winner}
-                            gameEndType={gameEndType}
-                            onNewGame={handleNewGame}
-                            onClose={handleCloseModal}
-                        />
-                    )}
-                    <PromotionModal 
-                        isOpen={!!promotionMove}
-                        onSelect={handlePromotion}
-                        color={currentTurn}
-                    />
-                    <ToastContainer
-                        position="bottom-right"
-                        autoClose={2000}
-                        hideProgressBar={false}
-                        newestOnTop={true}
-                        closeOnClick
-                        rtl={false}
-                        pauseOnFocusLoss
-                        draggable
-                        pauseOnHover
-                        theme="light"
-                        limit={3}
-                    />
-                    {showTestScenarios && (
-                        <TestScenarios onSetPosition={setPosition} />
-                    )}
                 </div>
+
+                {showModal && (
+                    <GameOverModal 
+                        winner={winner}
+                        gameEndType={gameEndType}
+                        onNewGame={handleNewGame}
+                        onClose={handleCloseModal}
+                    />
+                )}
+                
+                <PromotionModal 
+                    isOpen={!!promotionMove}
+                    onSelect={handlePromotion}
+                    color={currentTurn}
+                />
+                
+                <ToastContainer
+                    position="bottom-right"
+                    autoClose={2000}
+                    hideProgressBar={false}
+                    newestOnTop={true}
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme="light"
+                    limit={3}
+                />
+                
+                {showTestScenarios && (
+                    <TestScenarios onSetPosition={setPosition} />
+                )}
             </div>
-        </DndProvider>
+        </DndContext>
     );
 };
 
