@@ -361,6 +361,41 @@ const TestScenarios = ({ onSetPosition }) => {
     );
 };
 
+// Add Header component
+const Header = ({ onNewGame, showTestScenarios, setShowTestScenarios }) => {
+    return (
+        <header className="bg-white shadow-sm mb-8">
+            <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between items-center">
+                    {/* Title */}
+                    <h1 className="text-3xl font-bold text-green-900">
+                        Chess Game
+                    </h1>
+
+                    {/* Buttons */}
+                    <div className="flex gap-4">
+                        <button
+                            onClick={onNewGame}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
+                                     transition-colors flex items-center gap-2"
+                        >
+                            <span>New Game</span>
+                        </button>
+                        <button
+                            onClick={() => setShowTestScenarios(prev => !prev)}
+                            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
+                                     transition-colors flex items-center gap-2"
+                        >
+                            <span>{showTestScenarios ? 'Hide' : 'Show'} Test Scenarios</span>
+                            <span className="text-sm text-gray-400">(Option + T)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+    );
+};
+
 const Chessboard = () => {
     const [chess] = useState(() => {
         const savedFen = localStorage.getItem('chessPosition');
@@ -827,77 +862,64 @@ const Chessboard = () => {
 
     return (
         <DndProvider backend={HTML5Backend}>
-            <div className="p-8">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-green-900">Chess Game</h1>
-                    <div className="flex gap-4">
-                        <button
-                            onClick={handleNewGame}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
-                                     transition-colors flex items-center gap-2"
-                        >
-                            <span>New Game</span>
-                        </button>
-                        <button
-                            onClick={() => setShowTestScenarios(prev => !prev)}
-                            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 
-                                     transition-colors flex items-center gap-2"
-                        >
-                            <span>{showTestScenarios ? 'Hide' : 'Show'} Test Scenarios</span>
-                            <span className="text-sm text-gray-400">(Option + T)</span>
-                        </button>
-                    </div>
-                </div>
+            <div>
+                <Header 
+                    onNewGame={handleNewGame}
+                    showTestScenarios={showTestScenarios}
+                    setShowTestScenarios={setShowTestScenarios}
+                />
                 
-                <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
-                
-                {/* Main game container with flexbox */}
-                <div className="flex gap-8">
-                    {/* Left column - Chessboard and captured pieces */}
-                    <div className="flex flex-col space-y-2">
-                        <CapturedPieces pieces={capturedPieces.w} color="w" />
-                        <div className="inline-block bg-green-900 p-4 rounded-lg shadow-lg">
-                            {renderBoard()}
+                <div className="p-8">
+                    <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
+                    
+                    <div className="flex gap-8">
+                        {/* Left column - Chessboard and captured pieces */}
+                        <div className="flex flex-col space-y-2">
+                            <CapturedPieces pieces={capturedPieces.w} color="w" />
+                            <div className="inline-block bg-green-900 p-4 rounded-lg shadow-lg">
+                                {renderBoard()}
+                            </div>
+                            <CapturedPieces pieces={capturedPieces.b} color="b" />
                         </div>
-                        <CapturedPieces pieces={capturedPieces.b} color="b" />
-                    </div>
 
-                    {/* Right column - Move History, offset to align with chessboard */}
-                    <div className="w-64 mt-[40px]">
-                        <div className="h-[520px]">
-                            <MoveHistory moves={moveHistory} />
+                        {/* Right column - Move History, offset to align with chessboard */}
+                        <div className="w-64 mt-[40px]">
+                            <div className="h-[520px]">
+                                <MoveHistory moves={moveHistory} />
+                            </div>
                         </div>
                     </div>
-                </div>
-                {showModal && (
-                    <GameOverModal 
-                        winner={winner}
-                        gameEndType={gameEndType}
-                        onNewGame={handleNewGame}
-                        onClose={handleCloseModal}
+                    
+                    {showModal && (
+                        <GameOverModal 
+                            winner={winner}
+                            gameEndType={gameEndType}
+                            onNewGame={handleNewGame}
+                            onClose={handleCloseModal}
+                        />
+                    )}
+                    <PromotionModal 
+                        isOpen={!!promotionMove}
+                        onSelect={handlePromotion}
+                        color={currentTurn}
                     />
-                )}
-                <PromotionModal 
-                    isOpen={!!promotionMove}
-                    onSelect={handlePromotion}
-                    color={currentTurn}
-                />
-                <ToastContainer
-                    position="bottom-right"
-                    autoClose={2000}
-                    hideProgressBar={false}
-                    newestOnTop={true}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                    limit={3}
-                />
-                {showTestScenarios && (
-                    <TestScenarios onSetPosition={setPosition} />
-                )}
+                    <ToastContainer
+                        position="bottom-right"
+                        autoClose={2000}
+                        hideProgressBar={false}
+                        newestOnTop={true}
+                        closeOnClick
+                        rtl={false}
+                        pauseOnFocusLoss
+                        draggable
+                        pauseOnHover
+                        theme="light"
+                        limit={3}
+                    />
+                    {showTestScenarios && (
+                        <TestScenarios onSetPosition={setPosition} />
+                    )}
+                </div>
             </div>
         </DndProvider>
     );
