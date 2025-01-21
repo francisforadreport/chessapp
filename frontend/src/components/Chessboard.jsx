@@ -862,34 +862,39 @@ const Chessboard = () => {
 
     return (
         <DndProvider backend={HTML5Backend}>
-            <div>
+            <div className="min-h-screen bg-gray-50">
                 <Header 
                     onNewGame={handleNewGame}
                     showTestScenarios={showTestScenarios}
                     setShowTestScenarios={setShowTestScenarios}
                 />
                 
-                <div className="p-8">
-                    <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
-                    
-                    <div className="flex gap-8">
-                        {/* Left column - Chessboard and captured pieces */}
-                        <div className="flex flex-col space-y-2">
-                            <CapturedPieces pieces={capturedPieces.w} color="w" />
-                            <div className="inline-block bg-green-900 p-4 rounded-lg shadow-lg">
-                                {renderBoard()}
+                {/* Add max-w-7xl and matching padding to align with header */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="py-4 sm:py-8">
+                        <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
+                        
+                        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-center lg:items-start">
+                            {/* Board and captured pieces */}
+                            <div className="flex flex-col space-y-2">
+                                <CapturedPieces pieces={capturedPieces.w} color="w" />
+                                <div className="inline-block bg-green-900 p-2 sm:p-4 rounded-lg shadow-lg">
+                                    {renderBoard()}
+                                </div>
+                                <CapturedPieces pieces={capturedPieces.b} color="b" />
                             </div>
-                            <CapturedPieces pieces={capturedPieces.b} color="b" />
-                        </div>
 
-                        {/* Right column - Move History, offset to align with chessboard */}
-                        <div className="w-64 mt-[40px]">
-                            <div className="h-[520px]">
-                                <MoveHistory moves={moveHistory} />
+                            {/* Move History */}
+                            <div className="w-full lg:w-64 h-[400px] lg:h-[520px] lg:mt-[40px]">
+                                <MoveHistory 
+                                    moves={moveHistory} 
+                                    currentTurn={currentTurn}
+                                />
                             </div>
                         </div>
                     </div>
                     
+                    {/* Modals and notifications */}
                     {showModal && (
                         <GameOverModal 
                             winner={winner}
