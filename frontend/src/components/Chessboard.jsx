@@ -931,8 +931,8 @@ const Chessboard = () => {
                                 <CapturedPieces pieces={capturedPieces.b} color="b" />
                             </div>
 
-                            {/* Move History - Full width on mobile, side panel on desktop */}
-                            <div className="w-full lg:w-64 h-[300px] sm:h-[400px] lg:h-[520px]">
+                            {/* Move History - Increased width on desktop */}
+                            <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px]">
                                 <MoveHistory 
                                     moves={moveHistory} 
                                     currentTurn={currentTurn}
