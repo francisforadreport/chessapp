@@ -362,18 +362,33 @@ const TestScenarios = ({ onSetPosition }) => {
 };
 
 const Chessboard = () => {
-    const [chess] = useState(new Chess());
-    const [gameState, setGameState] = useState(chess.board());
-    const [currentTurn, setCurrentTurn] = useState("w");
+    const [chess] = useState(() => {
+        const savedFen = localStorage.getItem('chessPosition');
+        const newChess = new Chess();
+        if (savedFen) {
+            try {
+                newChess.load(savedFen);
+            } catch (error) {
+                console.error('Error loading saved position:', error);
+            }
+        }
+        return newChess;
+    });
+
+    const [gameState, setGameState] = useState(() => chess.board());
+    const [currentTurn, setCurrentTurn] = useState(() => chess.turn());
     const [selectedPiece, setSelectedPiece] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [winner, setWinner] = useState(null);
-    const [capturedPieces, setCapturedPieces] = useState({
-        w: [], // captured white pieces
-        b: []  // captured black pieces
+    const [capturedPieces, setCapturedPieces] = useState(() => {
+        const savedCaptured = localStorage.getItem('capturedPieces');
+        return savedCaptured ? JSON.parse(savedCaptured) : { w: [], b: [] };
     });
     const [isInCheck, setIsInCheck] = useState(false);
-    const [moveHistory, setMoveHistory] = useState([]);
+    const [moveHistory, setMoveHistory] = useState(() => {
+        const savedHistory = localStorage.getItem('moveHistory');
+        return savedHistory ? JSON.parse(savedHistory) : [];
+    });
     const [promotionMove, setPromotionMove] = useState(null);
     const [gameEndType, setGameEndType] = useState(null);
     const [showTestScenarios, setShowTestScenarios] = useState(false);
@@ -718,7 +733,7 @@ const Chessboard = () => {
         };
     }, [cleanupToasts]);
 
-    // Update handleNewGame to reset game end state
+    // Update handleNewGame to clear localStorage
     const handleNewGame = async () => {
         chess.reset();
         setGameState(chess.board());
@@ -729,6 +744,13 @@ const Chessboard = () => {
         setGameEndType(null);
         setCapturedPieces({ w: [], b: [] });
         setIsInCheck(false);
+        setMoveHistory([]);
+        
+        // Clear localStorage
+        localStorage.removeItem('chessPosition');
+        localStorage.removeItem('moveHistory');
+        localStorage.removeItem('capturedPieces');
+        
         try {
             await cleanupToasts();
         } catch (error) {
@@ -793,6 +815,13 @@ const Chessboard = () => {
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
     }, []);
+
+    // Save game state to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('chessPosition', chess.fen());
+        localStorage.setItem('moveHistory', JSON.stringify(moveHistory));
+        localStorage.setItem('capturedPieces', JSON.stringify(capturedPieces));
+    }, [chess, moveHistory, capturedPieces]);
 
     return (
         <DndProvider backend={HTML5Backend}>
