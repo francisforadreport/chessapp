@@ -499,6 +499,9 @@ const Chessboard = () => {
         return 'white';
     });
 
+    // Add a state for username
+    const [playerName, setPlayerName] = useState(localStorage.getItem('username') || 'Player');
+
     const cleanupToasts = useCallback(() => {
         return new Promise((resolve) => {
             try {
@@ -902,10 +905,16 @@ const Chessboard = () => {
             setGameConfig(config);
             setShowSetup(false);
             
+            // Update both localStorage and state
+            if (config.playerName) {
+                localStorage.setItem('username', config.playerName);
+                setPlayerName(config.playerName);
+                console.log('Username saved:', config.playerName); // Debug log
+            }
+            
             // Save to localStorage
             localStorage.setItem('hasPlayedBefore', 'true');
             localStorage.setItem('gameConfig', JSON.stringify(config));
-            localStorage.setItem('username', config.playerName);
             
             // Set and save board orientation based on player's color
             const newOrientation = config.playerColor === 'w' ? 'white' : 'black';
@@ -1012,6 +1021,15 @@ const Chessboard = () => {
         )
     );
 
+    // Add this effect to handle localStorage sync
+    useEffect(() => {
+        const storedName = localStorage.getItem('username');
+        if (storedName) {
+            setPlayerName(storedName);
+            console.log('Loaded username from storage:', storedName); // Debug log
+        }
+    }, []); // Run once on component mount
+
     return (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div className="min-h-screen bg-gray-50">
@@ -1044,7 +1062,7 @@ const Chessboard = () => {
                                     <div className="flex items-center justify-between">
                                         <span className="text-gray-400">Player</span>
                                         <span className="font-medium text-white">
-                                            {localStorage.getItem('username')}
+                                            {playerName}
                                         </span>
                                     </div>
                                 </div>
