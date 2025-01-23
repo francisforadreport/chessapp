@@ -444,6 +444,18 @@ const TestButton = ({ showTestScenarios, setShowTestScenarios }) => {
     );
 };
 
+// First, let's extract the PlayerInfo component
+const PlayerInfo = ({ playerName }) => (
+    <div className="bg-gray-800 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+            <span className="text-gray-400">Player</span>
+            <span className="font-medium text-white">
+                {playerName}
+            </span>
+        </div>
+    </div>
+);
+
 const Chessboard = () => {
     const [chess] = useState(() => {
         const savedFen = localStorage.getItem('chessPosition');
@@ -1046,6 +1058,11 @@ const Chessboard = () => {
                     <div className="py-2 sm:py-4">
                         <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                         
+                        {/* Player Info - Show on mobile only above board */}
+                        <div className="lg:hidden px-4 mb-4">
+                            <PlayerInfo playerName={playerName} />
+                        </div>
+                        
                         <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start justify-center">
                             <div className="w-full px-0 sm:px-4 lg:px-6">
                                 <div className="flex flex-col items-center space-y-2">
@@ -1057,14 +1074,11 @@ const Chessboard = () => {
                                 </div>
                             </div>
 
+                            {/* Right panel - Hide player info on mobile */}
                             <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px] px-2 sm:px-0">
-                                <div className="bg-gray-800 rounded-lg p-4 mb-4">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-gray-400">Player</span>
-                                        <span className="font-medium text-white">
-                                            {playerName}
-                                        </span>
-                                    </div>
+                                {/* Player Info - Show only on desktop */}
+                                <div className="hidden lg:block mb-4">
+                                    <PlayerInfo playerName={playerName} />
                                 </div>
                                 
                                 <MoveHistory 
