@@ -49,10 +49,12 @@ class ChessEngine {
                     const message = event.data;
                     
                     if (message.startsWith('bestmove')) {
-                        const move = message.split(' ')[1];
-                        if (this.onMove && move !== '(none)') {
-                            console.log('Engine selected move:', move);
-                            this.onMove(this.translateMove(move));
+                        const moveStr = message.split(' ')[1];
+                        if (this.onMove && moveStr !== '(none)') {
+                            console.log('Engine selected move:', moveStr);
+                            // Ensure the move is in the correct format
+                            const formattedMove = this.formatMove(moveStr);
+                            this.onMove(formattedMove);
                         }
                     } else if (message.includes('readyok')) {
                         this.isReady = true;
@@ -111,9 +113,35 @@ class ChessEngine {
         return true;
     }
 
-    async getMove(fen, difficulty, onMove) {
+    // Add a new method to format moves
+    formatMove(move) {
+        if (!move || typeof move !== 'string') {
+            throw new Error('Invalid move format');
+        }
+
+        // Clean the move string and ensure it's in the correct format
+        move = move.trim().toLowerCase();
+
+        // Add more strict validation for move format
+        const isValidMove = /^[a-h][1-8][a-h][1-8][qrbnk]?$/.test(move);
+        if (!isValidMove) {
+            console.error('Invalid move received from engine:', move);
+            throw new Error(`Invalid move format: ${move}`);
+        }
+
+        // Log the formatted move for debugging
+        const formattedMove = {
+            from: move.slice(0, 2),
+            to: move.slice(2, 4),
+            promotion: move.length === 5 ? move[4] : undefined
+        };
+        console.log('Formatted move:', formattedMove);
+
+        return formattedMove;
+    }
+
+    async getMove(fen, difficulty, onMove, boardOrientation = 'white') {
         try {
-            // Ensure engine is initialized
             await this.init();
 
             if (!this.engine || !this.isReady) {
@@ -124,19 +152,31 @@ class ChessEngine {
                 throw new Error('Invalid FEN position');
             }
 
+            if (!onMove || typeof onMove !== 'function') {
+                throw new Error('Invalid move callback');
+            }
+
+            this.currentOrientation = boardOrientation;
             this.onMove = onMove;
+            
             if (!this.setDifficulty(difficulty)) {
                 throw new Error('Failed to set difficulty');
             }
 
-            // Set position and calculate move
-            this.engine.postMessage(`position fen ${fen}`);
+            // Add a small delay between commands to ensure proper processing
+            this.engine.postMessage('ucinewgame');
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            this.engine.postMessage('position fen ' + fen);
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
             this.engine.postMessage(`go movetime ${this.currentDifficulty.movetime}`);
             
-            console.log('Requested move calculation:', { 
-                fen, 
-                difficulty, 
-                movetime: this.currentDifficulty.movetime 
+            console.log('Engine calculating move:', { 
+                fen,
+                difficulty,
+                movetime: this.currentDifficulty.movetime,
+                boardOrientation
             });
         } catch (error) {
             console.error('Error getting move:', error);
@@ -146,12 +186,20 @@ class ChessEngine {
 
     destroy() {
         if (this.engine) {
-            this.engine.terminate();
-            this.engine = null;
-            this.isReady = false;
-            this.initPromise = null;
-            this.initializationAttempts = 0;
-            console.log('Engine destroyed');
+            try {
+                // Send quit command before terminating
+                this.engine.postMessage('quit');
+                setTimeout(() => {
+                    this.engine.terminate();
+                    this.engine = null;
+                    this.isReady = false;
+                    this.initPromise = null;
+                    this.initializationAttempts = 0;
+                    console.log('Engine destroyed');
+                }, 100);
+            } catch (error) {
+                console.error('Error destroying engine:', error);
+            }
         }
     }
 }

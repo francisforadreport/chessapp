@@ -501,7 +501,14 @@ const Chessboard = () => {
     const [isAIThinking, setIsAIThinking] = useState(false);
 
     // Add a state for board orientation
-    const [boardOrientation, setBoardOrientation] = useState('white');
+    const [boardOrientation, setBoardOrientation] = useState(() => {
+        const savedConfig = localStorage.getItem('gameConfig');
+        if (savedConfig) {
+            const config = JSON.parse(savedConfig);
+            return config.playerColor === 'w' ? 'white' : 'black';
+        }
+        return 'white';
+    });
 
     const cleanupToasts = useCallback(() => {
         return new Promise((resolve) => {
@@ -524,167 +531,148 @@ const Chessboard = () => {
         }).map(move => move.to);
     }, [selectedPiece, chess]);
 
-    // Function to check game ending conditions
+    // Move checkGameEnd outside of component or wrap in useCallback if it uses component state
     const checkGameEnd = useCallback(() => {
-        // Already handled checkmate
         if (chess.isCheckmate()) {
             const winner = chess.turn() === 'w' ? 'Black' : 'White';
             setWinner(winner);
             setGameEndType(GameEndType.CHECKMATE);
             setShowModal(true);
             return true;
-        }
-
-        // Stalemate
-        if (chess.isStalemate()) {
+        } else if (chess.isStalemate()) {
             setGameEndType(GameEndType.STALEMATE);
             setShowModal(true);
             return true;
-        }
-
-        // Threefold Repetition
-        if (chess.isThreefoldRepetition()) {
-            setGameEndType(GameEndType.THREEFOLD);
-            setShowModal(true);
-            return true;
-        }
-
-        // Insufficient Material
-        if (chess.isInsufficientMaterial()) {
+        } else if (chess.isInsufficientMaterial()) {
             setGameEndType(GameEndType.INSUFFICIENT);
             setShowModal(true);
             return true;
-        }
-
-        // 50 Move Rule
-        if (chess.isDraw()) { // This includes the fifty move rule
-            setGameEndType(GameEndType.FIFTY_MOVE);
+        } else if (chess.isDraw()) {
+            setGameEndType(GameEndType.DRAW);
             setShowModal(true);
             return true;
         }
-
         return false;
-    }, [chess, setShowModal, setWinner]);
+    }, [chess, setWinner, setGameEndType, setShowModal]);
+
+    const handleAIMove = useCallback((moveObj) => {
+        try {
+            console.log('Making AI move:', moveObj, 'Current turn:', chess.turn());
+            
+            // Check for captures BEFORE making the move
+            const targetPiece = chess.get(moveObj.to);
+            const validMove = chess.move(moveObj);
+            
+            if (!validMove) {
+                console.error('Move validation failed:', moveObj);
+                throw new Error(`Invalid AI move: ${JSON.stringify(moveObj)}`);
+            }
+
+            setCurrentTurn(chess.turn());
+            setMoveHistory(chess.history());
+            
+            // Handle captures - if there was a piece at the target square
+            if (targetPiece) {
+                console.log('Capture detected:', {
+                    captured: targetPiece,
+                    by: validMove.color,
+                    at: validMove.to
+                });
+                
+                // Add the captured piece to the opposite color's captured pieces
+                setCapturedPieces(prev => ({
+                    ...prev,
+                    [validMove.color]: [
+                        ...prev[validMove.color],
+                        targetPiece.type
+                    ]
+                }));
+            }
+
+            setIsInCheck(chess.inCheck());
+            checkGameEnd();
+            
+        } catch (error) {
+            console.error('AI move error:', error);
+        } finally {
+            setIsAIThinking(false);
+        }
+    }, [chess, checkGameEnd]);
 
     const handleDrop = async (from, to) => {
         try {
+            // If dropping on the same square, just deselect the piece
+            if (from === to) {
+                setSelectedPiece(null);
+                return;
+            }
+
             const piece = chess.get(from);
             
-            // Check if it's the correct player's turn
-            if (piece.color !== gameConfig?.playerColor) {
-                toast.error("It's not your turn", {
-                    position: "bottom-right",
-                    autoClose: 2000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    toastId: 'wrong-turn'
-                });
+            if (!piece || piece.color !== gameConfig?.playerColor) {
+                toast.error("It's not your turn");
                 return;
             }
 
-            // If the piece is dropped back to its original position, ignore the move
-            if (from === to) {
-                return; // Silently return without any error message
-            }
-
+            // Check for captures BEFORE making the move
             const targetPiece = chess.get(to);
             
-            // Clear existing toasts before showing new ones
-            await cleanupToasts();
-                
-            if (!piece) {
-                toast.error("No piece selected", { 
-                    position: "bottom-right",
-                    autoClose: 2000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    toastId: 'no-piece'
-                });
+            // Check if the move is valid before making it
+            const moves = chess.moves({ 
+                square: from, 
+                verbose: true 
+            });
+            
+            const isValidMove = moves.some(move => move.to === to);
+            if (!isValidMove) {
+                console.log('Invalid move attempted:', { from, to });
+                toast.error("Invalid move");
                 return;
             }
 
-            if (piece.color !== currentTurn) {
-                toast.error(`It's ${currentTurn === 'w' ? 'White' : 'Black'}'s turn`, { 
-                    position: "bottom-right",
-                    autoClose: 2000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    toastId: 'wrong-turn'
-                });
-                return;
-            }
-
-            // Check for pawn promotion
-            const isPawnPromotion = piece?.type === 'p' && 
-                ((piece.color === 'w' && to[1] === '8') || 
-                 (piece.color === 'b' && to[1] === '1'));
-
-            if (isPawnPromotion) {
-                const moves = chess.moves({ verbose: true });
-                const isLegal = moves.some(move => 
-                    move.from === from && 
-                    move.to === to && 
-                    move.flags.includes('p')
-                );
-
-                if (!isLegal) {
-                    toast.error("Illegal move", {
-                        position: "bottom-right",
-                        autoClose: 2000,
-                        hideProgressBar: false,
-                        closeOnClick: true,
-                        toastId: 'illegal-move'
-                    });
-                    return;
-                }
-
-                setPromotionMove({ from, to });
-                return;
-            }
-
-            const moves = chess.moves({ verbose: true });
-            const isLegal = moves.some(move => 
-                move.from === from && move.to === to
-            );
-
-            if (!isLegal) {
-                toast.error("Illegal move", {
-                    position: "bottom-right",
-                    autoClose: 2000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    toastId: 'illegal-move'
-                });
-                return;
-            }
-
-            // Clear any existing error toasts before successful move
-            await cleanupToasts();
-
-            const move = chess.move({
+            const result = chess.move({
                 from,
                 to,
-                promotion: 'q'
+                promotion: 'q' // Default to queen for now
             });
 
-            if (move) {
+            if (result) {
                 setCurrentTurn(chess.turn());
                 setMoveHistory(chess.history());
-                setSelectedPiece(null); // Clear selected piece after move
-
+                
+                // Handle captures - if there was a piece at the target square
                 if (targetPiece) {
+                    console.log('Capture detected:', {
+                        captured: targetPiece,
+                        by: piece.color,
+                        at: to
+                    });
+                    
                     setCapturedPieces(prev => ({
                         ...prev,
-                        [piece.color]: [...prev[piece.color], targetPiece.type]
+                        [piece.color]: [
+                            ...prev[piece.color],
+                            targetPiece.type
+                        ]
                     }));
                 }
 
                 setIsInCheck(chess.inCheck());
-                checkGameEnd(); // Check for game-ending conditions
+                setSelectedPiece(null);
+
+                if (!checkGameEnd()) {
+                    setIsAIThinking(true);
+                    await ChessEngine.getMove(
+                        chess.fen(),
+                        gameConfig.difficulty,
+                        handleAIMove,
+                        boardOrientation
+                    );
+                }
             }
         } catch (error) {
             console.error('Move error:', error);
-            toast.error('Invalid move!');
+            toast.error("Invalid move");
         }
     };
 
@@ -762,7 +750,6 @@ const Chessboard = () => {
         const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
         const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
         
-        // FIXED: Reversed the orientation logic
         // When boardOrientation is 'black', we want black pieces at bottom
         const displayFiles = boardOrientation === 'black' ? files : [...files].reverse();
         const displayRanks = boardOrientation === 'black' ? [...ranks].reverse() : ranks;
@@ -931,9 +918,9 @@ const Chessboard = () => {
             localStorage.setItem('gameConfig', JSON.stringify(config));
             localStorage.setItem('username', config.playerName);
             
-            // FIXED: Set board orientation to match player's color
-            // When player chooses black, set orientation to 'black' to have black pieces at bottom
-            setBoardOrientation(config.playerColor === 'w' ? 'white' : 'black');
+            // Set and save board orientation based on player's color
+            const newOrientation = config.playerColor === 'w' ? 'white' : 'black';
+            setBoardOrientation(newOrientation);
             
             // Reset the game
             chess.reset();
@@ -952,7 +939,8 @@ const Chessboard = () => {
                 await ChessEngine.getMove(
                     chess.fen(),
                     config.difficulty,
-                    handleAIMove
+                    handleAIMove,
+                    newOrientation  // Pass the new orientation
                 );
             }
         } catch (error) {
@@ -961,53 +949,60 @@ const Chessboard = () => {
         }
     };
 
-    // Handle AI moves
-    const handleAIMove = useCallback((move) => {
-        try {
-            const result = chess.move(move);
-            if (result) {
-                setCurrentTurn(chess.turn());
-                setMoveHistory(chess.history());
-                
-                // Check for captured pieces
-                if (result.captured) {
-                    setCapturedPieces(prev => ({
-                        ...prev,
-                        [result.color]: [...prev[result.color], result.captured]
-                    }));
-                }
-                
-                setIsInCheck(chess.inCheck());
-                checkGameEnd();
+    // Add useEffect to handle initial game state loading
+    useEffect(() => {
+        const loadSavedGame = () => {
+            const savedConfig = localStorage.getItem('gameConfig');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                setGameConfig(config);
+                setBoardOrientation(config.playerColor === 'w' ? 'white' : 'black');
             }
-        } catch (error) {
-            console.error('Invalid AI move:', error);
-        } finally {
-            setIsAIThinking(false);
-        }
-    }, [chess, setCurrentTurn, setMoveHistory, setCapturedPieces, setIsInCheck, checkGameEnd]);
+        };
 
-    // Update useEffect for AI moves to handle engine initialization
+        loadSavedGame();
+    }, []);
+
+    // Update the useEffect for AI moves to prevent double moves
     useEffect(() => {
         const makeAIMove = async () => {
-            if (gameConfig && currentTurn !== gameConfig.playerColor && !checkGameEnd()) {
+            // Only make AI move if it's AI's turn
+            if (gameConfig && 
+                currentTurn !== gameConfig.playerColor && // Check if it's AI's turn
+                !isAIThinking && // Prevent multiple simultaneous AI moves
+                !checkGameEnd()) {
                 try {
                     setIsAIThinking(true);
-                    await ChessEngine.init(); // Ensure engine is initialized
+                    console.log('AI thinking...', {
+                        currentTurn,
+                        playerColor: gameConfig.playerColor,
+                        fen: chess.fen()
+                    });
+                    
+                    await ChessEngine.init();
                     await ChessEngine.getMove(
                         chess.fen(),
                         gameConfig.difficulty,
-                        handleAIMove
+                        handleAIMove,
+                        boardOrientation
                     );
                 } catch (error) {
                     console.error('Error making AI move:', error);
-                    toast.error('Error making AI move. Please try again.');
+                    setIsAIThinking(false);
                 }
             }
         };
 
         makeAIMove();
-    }, [currentTurn, gameConfig, chess, handleAIMove, checkGameEnd]);
+    }, [
+        gameConfig,
+        currentTurn,
+        chess,
+        handleAIMove,
+        checkGameEnd,
+        boardOrientation,
+        isAIThinking // Add isAIThinking to dependencies
+    ]);
 
     // Cleanup engine on unmount
     useEffect(() => {

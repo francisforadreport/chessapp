@@ -1,0 +1,78 @@
+**This is a plan for the project** 
+The idea is to create a web based chess that allows users to play against different AI models. These are regular models and advanced AI models.
+
+Core features of the project:
+1. User can play against a regular AI model
+2. User can see the logs of the game
+3. User can download the logs of the game
+4. User can play agains other users
+   4.a User can send a link to invite the user to play.
+   
+5. Leaderboard
+   5.1 Leaderboard is activated when the user plays against AI models.
+   5.2 Score is based on the number of moves and the time taken to finish the game.
+
+6. A system to score users based on their performance.
+   6.1 Score is based on the number of games won and the time taken to finish the game.
+
+7. Badges - 
+   7.1 Badges are awarded to users for completing certain tasks.
+       7.1.1. Badge for winning a game against a regular AI model.
+       7.1.2. Badge for winning a game against an advanced AI model.
+       7.1.3. Badge for winning a game against a user.
+       7.1.4. Badge for winning a game against a user in a short time.
+       7.1.5. Badge for winning a game against a user in a long time.
+       7.1.6. Badge for winning a game under 'x' moves
+       7.1.7. Badge for *different* moves
+8. Monetization - 
+   8.1. Users can purchase a subscription to access advanced AI models.
+   8.2. Users can purchase a subscription to view analytics(most used keys and tactics. Most played regiom etc)  of their games.
+   8.3. Users need to purchase to create an account and enter leaderboard.
+   8.4. No ads/popups/etc.
+   8.5. Users can save game and see others games (if saved by other users)
+
+9. User Authentication & Profiles
+   9.1. User registration and login system
+   9.2. Profile customization (avatar, bio, preferred time controls)
+   9.3. Game history and statistics
+   9.4. Rating system (ELO/Glicko)
+
+10. Game Features
+    10.1. Different time controls (Bullet, Blitz, Rapid, Classical)
+    10.2. Game modes (Standard, Fischer Random/Chess960)
+    10.3. Draw offers and resignation options
+    10.4. Move validation and legal move highlighting
+    10.5. Game analysis tools
+    10.6. Position setup/board editor
+
+11. Social Features
+    11.1. Friends list
+    11.2. Chat system (in-game and lobby)
+    11.3. Clubs/teams
+    11.4. Tournaments
+    11.5. Spectator mode for ongoing games
+
+12. Technical Considerations
+    12.1. Anti-cheating measures
+    12.2. Server-side move validation
+    12.3. Handling disconnections/reconnections
+    12.4. Game state persistence
+    12.5. API rate limiting
+    12.6. Mobile responsiveness
+
+13. Educational Features
+    13.1. Interactive tutorials
+    13.2. Puzzle system
+    13.3. Opening explorer
+    13.4. Post-game analysis with AI suggestions
+    13.5. Common pattern recognition training
+
+14. Accessibility
+    14.1. Screen reader support
+    14.2. Keyboard navigation
+    14.3. Color blind modes
+    14.4. Multiple language support
+
+
+    Erorrs fixed -
+    1. Attempting to make a move and returning to the original position is throwing "invaid move error" when its not.
