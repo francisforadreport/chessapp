@@ -403,6 +403,9 @@ const TestScenarios = ({ onSetPosition, setShowTestScenarios }) => {
 
 // Update Header component
 const Header = ({ onNewGame }) => {
+    // Get username from localStorage
+    const username = localStorage.getItem('username');
+
     return (
         <header className="bg-white shadow-sm mb-4 sm:mb-8">
             <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
@@ -412,8 +415,14 @@ const Header = ({ onNewGame }) => {
                         Chess Pro AI
                     </h1>
 
-                    {/* New Game Button */}
-                    <div className="flex flex-wrap justify-center gap-2">
+                    {/* Username and New Game Button */}
+                    <div className="flex items-center gap-4">
+                        {username && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Player:</span>
+                                <span className="font-medium text-green-700">{username}</span>
+                            </div>
+                        )}
                         <button
                             onClick={onNewGame}
                             className="px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base 
@@ -460,7 +469,6 @@ const Chessboard = () => {
         return newChess;
     });
 
-    const [gameState, setGameState] = useState(() => chess.board());
     const [currentTurn, setCurrentTurn] = useState(() => chess.turn());
     const [selectedPiece, setSelectedPiece] = useState(null);
     const [showModal, setShowModal] = useState(false);
@@ -491,6 +499,9 @@ const Chessboard = () => {
 
     // Add state for AI thinking
     const [isAIThinking, setIsAIThinking] = useState(false);
+
+    // Add a state for board orientation
+    const [boardOrientation, setBoardOrientation] = useState('white');
 
     const cleanupToasts = useCallback(() => {
         return new Promise((resolve) => {
@@ -557,12 +568,25 @@ const Chessboard = () => {
 
     const handleDrop = async (from, to) => {
         try {
+            const piece = chess.get(from);
+            
+            // Check if it's the correct player's turn
+            if (piece.color !== gameConfig?.playerColor) {
+                toast.error("It's not your turn", {
+                    position: "bottom-right",
+                    autoClose: 2000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    toastId: 'wrong-turn'
+                });
+                return;
+            }
+
             // If the piece is dropped back to its original position, ignore the move
             if (from === to) {
                 return; // Silently return without any error message
             }
 
-            const piece = chess.get(from);
             const targetPiece = chess.get(to);
             
             // Clear existing toasts before showing new ones
@@ -644,7 +668,6 @@ const Chessboard = () => {
             });
 
             if (move) {
-                setGameState(chess.board());
                 setCurrentTurn(chess.turn());
                 setMoveHistory(chess.history());
                 setSelectedPiece(null); // Clear selected piece after move
@@ -660,15 +683,8 @@ const Chessboard = () => {
                 checkGameEnd(); // Check for game-ending conditions
             }
         } catch (error) {
-            console.error("Move attempt failed:", error);
-            await cleanupToasts();
-            toast.error("Invalid move", { 
-                position: "bottom-right",
-                autoClose: 2000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                toastId: 'invalid-move'
-            });
+            console.error('Move error:', error);
+            toast.error('Invalid move!');
         }
     };
 
@@ -745,26 +761,30 @@ const Chessboard = () => {
     const renderBoard = () => {
         const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
         const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
-
+        
+        const displayFiles = boardOrientation === 'white' ? files : [...files].reverse();
+        const displayRanks = boardOrientation === 'white' ? [...ranks].reverse() : ranks;
+        
         return (
             <div className="grid grid-cols-8 w-full max-w-[512px] mx-auto">
-                {gameState.map((row, rowIndex) => (
-                    row.map((square, squareIndex) => {
-                        const position = `${files[squareIndex]}${ranks[rowIndex]}`;
-                        const isLight = (rowIndex + squareIndex) % 2 === 0;
+                {displayRanks.map((rank, rankIndex) => (
+                    displayFiles.map((file, fileIndex) => {
+                        const position = `${file}${rank}`;
+                        const isLight = (rankIndex + fileIndex) % 2 === 0;
                         const isHighlighted = possibleMoves.includes(position);
+                        const piece = chess.get(position);
 
                         return (
                             <Square
-                                key={`${rowIndex}-${squareIndex}`}
+                                key={position}
                                 position={position}
                                 isLight={isLight}
                                 isHighlighted={isHighlighted}
                             >
-                                {square && (
+                                {piece && (
                                     <Piece
-                                        piece={square.type}
-                                        color={square.color}
+                                        piece={piece.type}
+                                        color={piece.color}
                                         position={position}
                                         currentTurn={currentTurn}
                                         onSelect={(pos) => setSelectedPiece(pos === selectedPiece ? null : pos)}
@@ -796,7 +816,6 @@ const Chessboard = () => {
             });
 
             if (move) {
-                setGameState(chess.board());
                 setCurrentTurn(chess.turn());
                 setMoveHistory(chess.history());
                 
@@ -844,7 +863,6 @@ const Chessboard = () => {
                 chess.load(fen);
             }
             
-            setGameState(chess.board());
             setCurrentTurn(chess.turn());
             setMoveHistory(chess.history());
             setIsInCheck(chess.inCheck());
@@ -900,26 +918,43 @@ const Chessboard = () => {
         localStorage.setItem('capturedPieces', JSON.stringify(capturedPieces));
     }, [chess, moveHistory, capturedPieces]);
 
-    // Add handler for game start
-    const handleGameStart = (config) => {
-        setGameConfig(config);
-        setShowSetup(false);
-        
-        // Save to localStorage
-        localStorage.setItem('hasPlayedBefore', 'true');
-        localStorage.setItem('gameConfig', JSON.stringify(config));
-        localStorage.setItem('username', config.playerName);  // Save username
-        
-        // Reset the game
-        chess.reset();
-        setGameState(chess.board());
-        setCurrentTurn(config.playerColor === 'w' ? 'w' : 'b');
-        setSelectedPiece(null);
-        setWinner(null);
-        setGameEndType(null);
-        setCapturedPieces({ w: [], b: [] });
-        setIsInCheck(false);
-        setMoveHistory([]);
+    // Update handleGameStart to properly set up the board orientation and initial state
+    const handleGameStart = async (config) => {
+        try {
+            setGameConfig(config);
+            setShowSetup(false);
+            
+            // Save to localStorage
+            localStorage.setItem('hasPlayedBefore', 'true');
+            localStorage.setItem('gameConfig', JSON.stringify(config));
+            localStorage.setItem('username', config.playerName);
+            
+            setBoardOrientation(config.playerColor === 'w' ? 'white' : 'black');
+            
+            // Reset the game
+            chess.reset();
+            setCurrentTurn('w');
+            setSelectedPiece(null);
+            setWinner(null);
+            setGameEndType(null);
+            setCapturedPieces({ w: [], b: [] });
+            setIsInCheck(false);
+            setMoveHistory([]);
+
+            await ChessEngine.init();
+
+            if (config.playerColor === 'b') {
+                setIsAIThinking(true);
+                await ChessEngine.getMove(
+                    chess.fen(),
+                    config.difficulty,
+                    handleAIMove
+                );
+            }
+        } catch (error) {
+            console.error('Error starting game:', error);
+            toast.error('Error starting game. Please try again.');
+        }
     };
 
     // Handle AI moves
@@ -927,7 +962,6 @@ const Chessboard = () => {
         try {
             const result = chess.move(move);
             if (result) {
-                setGameState(chess.board());
                 setCurrentTurn(chess.turn());
                 setMoveHistory(chess.history());
                 
@@ -947,18 +981,28 @@ const Chessboard = () => {
         } finally {
             setIsAIThinking(false);
         }
-    }, [chess, setGameState, setCurrentTurn, setMoveHistory, setCapturedPieces, setIsInCheck, checkGameEnd]);
+    }, [chess, setCurrentTurn, setMoveHistory, setCapturedPieces, setIsInCheck, checkGameEnd]);
 
-    // Trigger AI move after player's move
+    // Update useEffect for AI moves to handle engine initialization
     useEffect(() => {
-        if (gameConfig && currentTurn !== gameConfig.playerColor && !checkGameEnd()) {
-            setIsAIThinking(true);
-            ChessEngine.getMove(
-                chess.fen(),
-                gameConfig.difficulty,
-                handleAIMove
-            );
-        }
+        const makeAIMove = async () => {
+            if (gameConfig && currentTurn !== gameConfig.playerColor && !checkGameEnd()) {
+                try {
+                    setIsAIThinking(true);
+                    await ChessEngine.init(); // Ensure engine is initialized
+                    await ChessEngine.getMove(
+                        chess.fen(),
+                        gameConfig.difficulty,
+                        handleAIMove
+                    );
+                } catch (error) {
+                    console.error('Error making AI move:', error);
+                    toast.error('Error making AI move. Please try again.');
+                }
+            }
+        };
+
+        makeAIMove();
     }, [currentTurn, gameConfig, chess, handleAIMove, checkGameEnd]);
 
     // Cleanup engine on unmount
@@ -1008,6 +1052,15 @@ const Chessboard = () => {
                             </div>
 
                             <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px] px-2 sm:px-0">
+                                <div className="bg-gray-800 rounded-lg p-4 mb-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-400">Player</span>
+                                        <span className="font-medium text-white">
+                                            {localStorage.getItem('username')}
+                                        </span>
+                                    </div>
+                                </div>
+                                
                                 <MoveHistory 
                                     moves={moveHistory} 
                                     currentTurn={currentTurn}
