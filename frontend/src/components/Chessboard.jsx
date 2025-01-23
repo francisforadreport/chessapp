@@ -403,9 +403,6 @@ const TestScenarios = ({ onSetPosition, setShowTestScenarios }) => {
 
 // Update Header component
 const Header = ({ onNewGame }) => {
-    // Get username from localStorage
-    const username = localStorage.getItem('username');
-
     return (
         <header className="bg-white shadow-sm mb-4 sm:mb-8">
             <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
@@ -415,23 +412,15 @@ const Header = ({ onNewGame }) => {
                         Chess Pro AI
                     </h1>
 
-                    {/* Username and New Game Button */}
-                    <div className="flex items-center gap-4">
-                        {username && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-gray-600">Player:</span>
-                                <span className="font-medium text-green-700">{username}</span>
-                            </div>
-                        )}
-                        <button
-                            onClick={onNewGame}
-                            className="px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base 
-                                     bg-green-600 text-white rounded-lg hover:bg-green-700 
-                                     transition-colors flex items-center gap-2"
-                        >
-                            <span>New Game</span>
-                        </button>
-                    </div>
+                    {/* New Game Button */}
+                    <button
+                        onClick={onNewGame}
+                        className="px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base 
+                                 bg-green-600 text-white rounded-lg hover:bg-green-700 
+                                 transition-colors flex items-center gap-2"
+                    >
+                        <span>New Game</span>
+                    </button>
                 </div>
             </div>
         </header>
