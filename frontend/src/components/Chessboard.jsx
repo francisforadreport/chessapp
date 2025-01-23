@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Chess } from "chess.js";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -331,11 +331,10 @@ const CheckNotification = ({ isInCheck, turn }) => {
 };
 
 // Add a debug menu for testing different scenarios
-const TestScenarios = ({ onSetPosition }) => {
+const TestScenarios = ({ onSetPosition, setShowTestScenarios }) => {
     const scenarios = [
         {
             name: "Stalemate",
-            // Black king is stalemated
             fen: "k7/8/1KP5/8/8/8/8/8 w - - 0 1"
         },
         {
@@ -358,8 +357,26 @@ const TestScenarios = ({ onSetPosition }) => {
         }
     ];
 
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            // Check if click is outside both the test button and scenarios panel
+            if (ref.current && 
+                !ref.current.contains(event.target) && 
+                !event.target.closest('.test-button')) {  // Add class to TestButton
+                setShowTestScenarios(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [setShowTestScenarios]);  // Add dependency
+
     return (
-        <div className="fixed bottom-4 left-4 bg-gray-800 p-4 rounded-lg shadow-lg z-50">
+        <div ref={ref} className="fixed bottom-16 left-4 bg-gray-800 p-4 rounded-lg shadow-lg z-50">
             <h3 className="text-white font-bold mb-2">Test Scenarios</h3>
             <div className="space-y-2">
                 {scenarios.map((scenario) => (
@@ -385,7 +402,7 @@ const TestScenarios = ({ onSetPosition }) => {
 };
 
 // Update Header component
-const Header = ({ onNewGame, showTestScenarios, setShowTestScenarios }) => {
+const Header = ({ onNewGame }) => {
     return (
         <header className="bg-white shadow-sm mb-4 sm:mb-8">
             <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
@@ -395,7 +412,7 @@ const Header = ({ onNewGame, showTestScenarios, setShowTestScenarios }) => {
                         Chess Pro AI
                     </h1>
 
-                    {/* Buttons */}
+                    {/* New Game Button */}
                     <div className="flex flex-wrap justify-center gap-2">
                         <button
                             onClick={onNewGame}
@@ -405,19 +422,27 @@ const Header = ({ onNewGame, showTestScenarios, setShowTestScenarios }) => {
                         >
                             <span>New Game</span>
                         </button>
-                        <button
-                            onClick={() => setShowTestScenarios(prev => !prev)}
-                            className="px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base 
-                                     bg-gray-800 text-white rounded-lg hover:bg-gray-700 
-                                     transition-colors flex items-center gap-2"
-                        >
-                            <span>{showTestScenarios ? 'Hide' : 'Show'} Test</span>
-                            <span className="hidden sm:inline text-sm text-gray-400">(Option + T)</span>
-                        </button>
                     </div>
                 </div>
             </div>
         </header>
+    );
+};
+
+// Add TestButton component
+const TestButton = ({ showTestScenarios, setShowTestScenarios }) => {
+    return (
+        <div className="fixed bottom-4 left-4 z-50">
+            <button
+                onClick={() => setShowTestScenarios(prev => !prev)}
+                className="test-button px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base 
+                         bg-gray-800 text-white rounded-lg hover:bg-gray-700 
+                         transition-colors flex items-center gap-2"
+            >
+                <span>{showTestScenarios ? 'Hide' : 'Show'} Test</span>
+                <span className="hidden sm:inline text-sm text-gray-400">(Option + T)</span>
+            </button>
+        </div>
     );
 };
 
@@ -453,9 +478,10 @@ const Chessboard = () => {
     const [gameEndType, setGameEndType] = useState(null);
     const [showTestScenarios, setShowTestScenarios] = useState(false);
     const [showSetup, setShowSetup] = useState(() => {
-        // Check if user has played before
+        // Check both if user has played before AND if username exists
         const hasPlayedBefore = localStorage.getItem('hasPlayedBefore');
-        return !hasPlayedBefore; // Show setup if never played before
+        const savedUsername = localStorage.getItem('username');
+        return !hasPlayedBefore || !savedUsername;
     });
     const [gameConfig, setGameConfig] = useState(() => {
         // Try to get saved config
@@ -626,7 +652,7 @@ const Chessboard = () => {
                 if (targetPiece) {
                     setCapturedPieces(prev => ({
                         ...prev,
-                        [targetPiece.color]: [...prev[targetPiece.color], targetPiece.type]
+                        [piece.color]: [...prev[piece.color], targetPiece.type]
                     }));
                 }
 
@@ -882,6 +908,7 @@ const Chessboard = () => {
         // Save to localStorage
         localStorage.setItem('hasPlayedBefore', 'true');
         localStorage.setItem('gameConfig', JSON.stringify(config));
+        localStorage.setItem('username', config.playerName);  // Save username
         
         // Reset the game
         chess.reset();
@@ -960,33 +987,27 @@ const Chessboard = () => {
                 {showSetup && (
                     <GameSetupModal 
                         onStartGame={handleGameStart}
-                        initialConfig={gameConfig} // Pass previous config if exists
+                        initialConfig={gameConfig}
                     />
                 )}
-                <Header 
-                    onNewGame={handleNewGame}
-                    showTestScenarios={showTestScenarios}
-                    setShowTestScenarios={setShowTestScenarios}
-                />
+                <Header onNewGame={handleNewGame} />
                 
-                <div className="max-w-[1920px] mx-auto">
+                <div className="sm:max-w-[1920px] mx-auto">
                     <div className="py-2 sm:py-4">
                         <CheckNotification isInCheck={isInCheck} turn={currentTurn} />
                         
-                        <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start justify-center px-2 sm:px-4 lg:px-6">
-                            {/* Board container */}
-                            <div className="w-full lg:w-auto">
+                        <div className="flex flex-col lg:flex-row gap-4 items-center lg:items-start justify-center">
+                            <div className="w-full px-0 sm:px-4 lg:px-6">
                                 <div className="flex flex-col items-center space-y-2">
                                     <CapturedPieces pieces={capturedPieces.w} color="w" />
-                                    <div className="w-full lg:w-auto bg-green-900 p-0 sm:p-3 lg:p-4 rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] hover:shadow-[0_0_25px_rgba(0,0,0,0.25)] transition-shadow duration-300">
+                                    <div className="w-full sm:w-auto inline-block bg-green-900 p-2 sm:p-3 lg:p-4 rounded-lg shadow-lg">
                                         {renderBoard()}
                                     </div>
                                     <CapturedPieces pieces={capturedPieces.b} color="b" />
                                 </div>
                             </div>
 
-                            {/* Move History */}
-                            <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px] px-2 lg:px-0">
+                            <div className="w-full lg:w-96 h-[300px] sm:h-[400px] lg:h-[520px] px-2 sm:px-0">
                                 <MoveHistory 
                                     moves={moveHistory} 
                                     currentTurn={currentTurn}
@@ -1025,8 +1046,16 @@ const Chessboard = () => {
                     limit={3}
                 />
                 
+                <TestButton 
+                    showTestScenarios={showTestScenarios}
+                    setShowTestScenarios={setShowTestScenarios}
+                />
+                
                 {showTestScenarios && (
-                    <TestScenarios onSetPosition={setPosition} />
+                    <TestScenarios 
+                        onSetPosition={setPosition}
+                        setShowTestScenarios={setShowTestScenarios}
+                    />
                 )}
             </div>
         </DndContext>

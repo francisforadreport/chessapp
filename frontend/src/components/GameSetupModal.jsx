@@ -7,18 +7,30 @@ const DifficultyLevel = {
     EXPERT: 'expert'
 };
 
-const GameSetupModal = ({ onStartGame }) => {
-    const [playerName, setPlayerName] = useState('');
+const GameSetupModal = ({ onStartGame, initialConfig }) => {
+    // Initialize playerName from localStorage or empty string
+    const [playerName, setPlayerName] = useState(() => {
+        return localStorage.getItem('username') || '';
+    });
     const [selectedDifficulty, setSelectedDifficulty] = useState(null);
     const [selectedColor, setSelectedColor] = useState(null);
-    const [step, setStep] = useState(1); // 1: Name, 2: Difficulty, 3: Color
+    // Start at step 2 if username exists
+    const [step, setStep] = useState(() => {
+        return localStorage.getItem('username') ? 2 : 1;
+    });
 
     const handleStartGame = () => {
-        onStartGame({
+        const config = {
             playerName,
             difficulty: selectedDifficulty,
             playerColor: selectedColor
-        });
+        };
+        
+        // Save to localStorage
+        localStorage.setItem('username', playerName);
+        localStorage.setItem('gameConfig', JSON.stringify(config));
+        
+        onStartGame(config);
     };
 
     return (
@@ -28,7 +40,7 @@ const GameSetupModal = ({ onStartGame }) => {
                     Welcome to Chess Pro AI
                 </h2>
 
-                {/* Step 1: Name Input */}
+                {/* Step 1: Name Input (only shown if no username stored) */}
                 {step === 1 && (
                     <div className="space-y-4">
                         <div>
