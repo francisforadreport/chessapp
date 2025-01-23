@@ -18,10 +18,15 @@ class ChessEngine {
     }
 
     async init() {
+        // Don't reinitialize if already ready
+        if (this.isReady && this.engine) {
+            return Promise.resolve();
+        }
+
         try {
             if (this.initializationAttempts >= this.maxAttempts) {
                 console.error('Failed to initialize chess engine after multiple attempts');
-                return;
+                return Promise.reject(new Error('Max initialization attempts reached'));
             }
 
             this.initializationAttempts++;
@@ -38,19 +43,18 @@ class ChessEngine {
             this.initPromise = new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
                     reject(new Error('Engine initialization timeout'));
-                }, 5000); // 5 second timeout
+                }, 10000); // Increased timeout to 10 seconds
 
                 this.engine.onmessage = (event) => {
                     const message = event.data;
-                    console.log('Lozza message:', message);
-
+                    
                     if (message.startsWith('bestmove')) {
                         const move = message.split(' ')[1];
-                        if (this.onMove) {
-                            this.onMove(move);
+                        if (this.onMove && move !== '(none)') {
                             console.log('Engine selected move:', move);
+                            this.onMove(this.translateMove(move));
                         }
-                    } else if (message.trim() === 'readyok') {  // Exact match with trim
+                    } else if (message.includes('readyok')) {
                         this.isReady = true;
                         clearTimeout(timeout);
                         resolve();
@@ -67,19 +71,26 @@ class ChessEngine {
                 // Initialize engine with UCI commands
                 this.engine.postMessage('uci');
                 this.engine.postMessage('isready');
-                console.log('Engine initialization commands sent');
             });
 
-            // Wait for initialization to complete
             await this.initPromise;
+            return this.initPromise;
 
         } catch (error) {
             console.error('Chess engine initialization error:', error);
             this.destroy();
             if (this.initializationAttempts < this.maxAttempts) {
-                setTimeout(() => this.init(), 1000);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return this.init();
             }
+            throw error;
         }
+    }
+
+    // Add method to translate moves based on board orientation
+    translateMove(move) {
+        // Return the move as is - the chess.js library will handle the validation
+        return move;
     }
 
     setDifficulty(level) {
@@ -102,9 +113,8 @@ class ChessEngine {
 
     async getMove(fen, difficulty, onMove) {
         try {
-            if (this.initPromise) {
-                await this.initPromise;
-            }
+            // Ensure engine is initialized
+            await this.init();
 
             if (!this.engine || !this.isReady) {
                 throw new Error('Engine not ready for move calculation');
@@ -119,9 +129,10 @@ class ChessEngine {
                 throw new Error('Failed to set difficulty');
             }
 
-            // Set position and calculate move with current difficulty
+            // Set position and calculate move
             this.engine.postMessage(`position fen ${fen}`);
             this.engine.postMessage(`go movetime ${this.currentDifficulty.movetime}`);
+            
             console.log('Requested move calculation:', { 
                 fen, 
                 difficulty, 
@@ -139,11 +150,12 @@ class ChessEngine {
             this.engine = null;
             this.isReady = false;
             this.initPromise = null;
+            this.initializationAttempts = 0;
             console.log('Engine destroyed');
         }
     }
 }
 
+// Create a singleton instance
 const chessEngine = new ChessEngine();
-window.chessEngine = chessEngine;
 export default chessEngine; 

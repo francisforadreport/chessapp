@@ -762,8 +762,10 @@ const Chessboard = () => {
         const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
         const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
         
-        const displayFiles = boardOrientation === 'white' ? files : [...files].reverse();
-        const displayRanks = boardOrientation === 'white' ? [...ranks].reverse() : ranks;
+        // FIXED: Reversed the orientation logic
+        // When boardOrientation is 'black', we want black pieces at bottom
+        const displayFiles = boardOrientation === 'black' ? files : [...files].reverse();
+        const displayRanks = boardOrientation === 'black' ? [...ranks].reverse() : ranks;
         
         return (
             <div className="grid grid-cols-8 w-full max-w-[512px] mx-auto">
@@ -929,6 +931,8 @@ const Chessboard = () => {
             localStorage.setItem('gameConfig', JSON.stringify(config));
             localStorage.setItem('username', config.playerName);
             
+            // FIXED: Set board orientation to match player's color
+            // When player chooses black, set orientation to 'black' to have black pieces at bottom
             setBoardOrientation(config.playerColor === 'w' ? 'white' : 'black');
             
             // Reset the game
