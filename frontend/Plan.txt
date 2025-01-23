@@ -76,3 +76,24 @@ Core features of the project:
 
     Erorrs fixed -
     1. Attempting to make a move and returning to the original position is throwing "invaid move error" when its not.
+
+Fixed Bugs Log:
+1. Captured pieces by white player were not being displayed correctly
+   - Fixed by updating the capture handling logic in handleAIMove and handleDrop
+   - Date fixed: [Current Date]
+
+2. Board orientation was resetting to default on page refresh
+   - Fixed by properly persisting and loading orientation from localStorage
+   - Date fixed: [Current Date]
+
+3. Attempting to make a move and returning to the original position was throwing "invalid move error"
+   - Fixed by adding proper handling for same-square drops in handleDrop function
+   - Date fixed: [Current Date]
+
+4. AI move errors were being displayed even when moves were valid
+   - Fixed by improving error handling and removing unnecessary error toasts
+   - Date fixed: [Current Date]
+
+Known Issues to Fix:
+1. [Place for future issues]
+
